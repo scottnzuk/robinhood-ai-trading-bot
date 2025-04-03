@@ -4,3 +4,8 @@ onepassword~=0.4.1
 pandas~=2.2.3
 pytz~=2024.2
 pyotp~=2.9.0
+python-dotenv~=1.0.0
+requests~=2.32.2
+tenacity==9.1.2
+ratelimit==2.2.1
+cachetools==5.5.2

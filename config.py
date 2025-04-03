@@ -1,0 +1,38 @@
+import os
+
+# 1Password Credentials
+OP_SERVICE_ACCOUNT_NAME = os.getenv('OP_SERVICE_ACCOUNT_NAME', '')
+OP_SERVICE_ACCOUNT_TOKEN = os.getenv('OP_SERVICE_ACCOUNT_TOKEN', '')
+OP_VAULT_NAME = os.getenv('OP_VAULT_NAME', '')
+OP_ITEM_NAME = os.getenv('OP_ITEM_NAME', '')
+
+# Credentials
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+REQUESTY_API_KEY = os.getenv('REQUESTY_API_KEY', '')
+DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY', '')
+ROBINHOOD_USERNAME = os.getenv('ROBINHOOD_USERNAME', '')
+ROBINHOOD_PASSWORD = os.getenv('ROBINHOOD_PASSWORD', '')
+ROBINHOOD_MFA_SECRET = os.getenv('ROBINHOOD_MFA_SECRET', '')
+
+# Basic config parameters
+MODE = os.getenv('MODE', 'test')
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
+RUN_INTERVAL_SECONDS = int(os.getenv('RUN_INTERVAL_SECONDS', '60'))
+TRADING_INTERVAL_MINUTES = int(os.getenv('TRADING_INTERVAL_MINUTES', '15'))
+MAX_TRADES_PER_DAY = int(os.getenv('MAX_TRADES_PER_DAY', '10'))
+
+# Robinhood config parameters
+TRADE_EXCEPTIONS = []
+WATCHLIST_NAMES = []
+WATCHLIST_OVERVIEW_LIMIT = 5
+PORTFOLIO_LIMIT = 5
+MIN_SELLING_AMOUNT_USD = 1.0
+MAX_SELLING_AMOUNT_USD = 10.0
+MIN_BUYING_AMOUNT_USD = 1.0
+MAX_BUYING_AMOUNT_USD = 10.0
+
+# AI config params
+DEFAULT_AI_PROVIDER = os.getenv('DEFAULT_AI_PROVIDER', 'requesty')
+DEFAULT_AI_MODEL = os.getenv('DEFAULT_AI_MODEL', 'parasail/parasail-gemma3-27b-it')
+OPENAI_MODEL_NAME = os.getenv('OPENAI_MODEL_NAME', 'gpt-4')

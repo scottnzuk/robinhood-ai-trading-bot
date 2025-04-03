@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "debugpy",
+      "request": "launch",
+      "name": "Launch main.py",
+      "program": "${workspaceFolder}/${input:programPath}",
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "pickString",
+      "id": "programPath",
+      "description": "Select the Python file to debug",
+      "options": [
+        "main.py",
+        "src/api/example_usage.py",
+        "src/api/openai.py",
+        "src/api/robinhood.py"
+      ]
+    }
+  ]
+}

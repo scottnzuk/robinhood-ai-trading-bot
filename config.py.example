@@ -1,29 +1,37 @@
 # 1Password Credentials
-OP_SERVICE_ACCOUNT_NAME = ""                # 1Password service account name (for Robinhood MFA secret)
-OP_SERVICE_ACCOUNT_TOKEN = ""               # 1Password service account token (for Robinhood MFA secret)
-OP_VAULT_NAME = ""                          # 1Password vault name (for Robinhood MFA secret)
-OP_ITEM_NAME = ""                           # 1Password item name (for Robinhood MFA secret)
+OP_SERVICE_ACCOUNT_NAME = ""                # 1Password service account name
+OP_SERVICE_ACCOUNT_TOKEN = ""               # 1Password service account token
+OP_VAULT_NAME = ""                          # 1Password vault name
+OP_ITEM_NAME = ""                           # 1Password item name
 
-# Credentials
-OPENAI_API_KEY = "..."                      # OpenAI API key
-ROBINHOOD_USERNAME = "..."                  # Robinhood username
-ROBINHOOD_PASSWORD = "..."                  # Robinhood password
-ROBINHOOD_MFA_SECRET = ""                   # Robinhood MFA secret (if enabled)
+# Credentials - Signup Links:
+# Requesty: https://app.requesty.ai/sign-up
+# DeepSeek: https://platform.deepseek.com/signup  
+# OpenRouter: https://openrouter.ai/register
+# OpenAI: https://platform.openai.com/signup
+OPENAI_API_KEY = ""                         # OpenAI API key
+REQUESTY_API_KEY = ""                       # Requesty.ai API key
+DEEPSEEK_API_KEY = ""                       # DeepSeek API key  
+OPENROUTER_API_KEY = ""                     # OpenRouter API key
+ROBINHOOD_USERNAME = ""                     # Robinhood username
+ROBINHOOD_PASSWORD = ""                     # Robinhood password
+ROBINHOOD_MFA_SECRET = ""                   # Robinhood MFA secret
 
 # Basic config parameters
 MODE = "demo"                               # Trading mode (demo, auto, manual)
 LOG_LEVEL = "INFO"                          # Log level (DEBUG, INFO, WARNING, ERROR)
-RUN_INTERVAL_SECONDS = 600                  # Trading interval in seconds (if the market is open)
+LOG_DIR = "logs"                            # Directory for log files
+MAX_LOG_SIZE_MB = 10                        # Max log file size in MB
+LOG_BACKUP_COUNT = 5                        # Number of log backups to keep
+RUN_INTERVAL_SECONDS = 600                  # Trading interval in seconds
 
 # Robinhood config parameters
-TRADE_EXCEPTIONS = []                       # List of stocks to exclude from trading (e.g. ["AAPL", "TSLA", "AMZN"])
-WATCHLIST_NAMES = []                        # Watchlist names (can be empty, or "My First List", "My Second List", etc.)
-WATCHLIST_OVERVIEW_LIMIT = 10               # Number of stocks to process in decision-making (e.g. 20)
-PORTFOLIO_LIMIT = 10                        # Number of stocks to hold in the portfolio
-MIN_SELLING_AMOUNT_USD = 1.0                # Minimum sell amount in USD (False - disable setting)
-MAX_SELLING_AMOUNT_USD = 10.0               # Maximum sell amount in USD (False - disable setting)
-MIN_BUYING_AMOUNT_USD = 1.0                 # Minimum buy amount in USD (False - disable setting)
-MAX_BUYING_AMOUNT_USD = 10.0                # Maximum buy amount in USD (False - disable setting)
+TRADE_EXCEPTIONS = []                       # Stocks to exclude from trading
+WATCHLIST_NAMES = []                        # Watchlist names
+WATCHLIST_OVERVIEW_LIMIT = 10               # Stocks to process in decisions
+PORTFOLIO_LIMIT = 10                        # Stocks to hold in portfolio
 
-# OpenAI config params
-OPENAI_MODEL_NAME = "gpt-4o-mini"           # OpenAI model name
+# AI config params  
+DEFAULT_AI_PROVIDER = "requesty"            # Default provider (requesty, deepseek, openrouter, openai)
+DEFAULT_AI_MODEL = "parasail/parasail-gemma3-27b-it" # Default model
+OPENAI_MODEL_NAME = "gpt-4"                 # OpenAI model name
