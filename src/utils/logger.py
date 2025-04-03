@@ -1,38 +1,54 @@
-from datetime import datetime
-from config import LOG_LEVEL
+import logging
+import sys
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from src.config import LOG_LEVEL, LOG_DIR, MAX_LOG_SIZE_MB, LOG_BACKUP_COUNT
 
-# Print log message
-def log(level, msg):
-    log_levels = {"DEBUG": 1, "INFO": 2, "WARNING": 3, "ERROR": 4}
-    level_color_codes = {
-        "DEBUG": "\033[94m",
-        "INFO": "\033[92m",
-        "WARNING": "\033[93m",
-        "ERROR": "\033[91m"
-    }
-    timestamp_color_code = "\033[96m"
-    reset_color_code = "\033[0m"
-    if log_levels.get(level, 2) >= log_levels.get(LOG_LEVEL, 2):
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        level_space = " " * (8 - len(level))
-        print(f"{timestamp_color_code}[{timestamp}] {level_color_codes[level]}[{level}]{reset_color_code}{level_space}{msg}")
+# Create log directory if it doesn't exist
+Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
 
+# Configure logger
+logger = logging.getLogger('robinhood_bot')
+logger.setLevel(LOG_LEVEL)
 
-# Print debug log message
-def debug(msg):
-    log("DEBUG", msg)
+# Create formatter
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
-# Print info log message
-def info(msg):
-    log("INFO", msg)
+# File handler
+file_handler = RotatingFileHandler(
+    filename=f'{LOG_DIR}/robinhood_bot.log',
+    maxBytes=MAX_LOG_SIZE_MB * 1024 * 1024,
+    backupCount=LOG_BACKUP_COUNT
+)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
+def log_exception(exc_type, exc_value, exc_traceback):
+    """Log uncaught exceptions"""
+    logger.error(
+        "Uncaught exception",
+        exc_info=(exc_type, exc_value, exc_traceback)
+    )
 
-# Print warning log message
-def warning(msg):
-    log("WARNING", msg)
+# Set exception hook
+sys.excepthook = log_exception
 
+# Convenience functions
+def debug(msg, *args, **kwargs):
+    logger.debug(msg, *args, **kwargs)
 
-# Print error log message
-def error(msg):
-    log("ERROR", msg)
+def info(msg, *args, **kwargs):
+    logger.info(msg, *args, **kwargs)
+
+def warning(msg, *args, **kwargs):
+    logger.warning(msg, *args, **kwargs)
+
+def error(msg, *args, **kwargs):
+    logger.error(msg, *args, **kwargs)

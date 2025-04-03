@@ -1,9 +1,23 @@
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import asyncio
 
-from config import *
+from config import (
+    MIN_SELLING_AMOUNT_USD,
+    MAX_SELLING_AMOUNT_USD,
+    MIN_BUYING_AMOUNT_USD,
+    MAX_BUYING_AMOUNT_USD,
+    PORTFOLIO_LIMIT,
+    TRADE_EXCEPTIONS,
+    RUN_INTERVAL_SECONDS,
+    WATCHLIST_NAMES,
+    WATCHLIST_OVERVIEW_LIMIT,
+    MODE
+)
 from src.api import robinhood
 from src.api import openai
 from src.utils import logger
@@ -39,7 +53,7 @@ def make_ai_decisions(account_info, portfolio_overview, watchlist_overview):
         constraints.append(f"- Sell Amounts Guidelines: {sell_guidelines}")
     if buy_guidelines:
         constraints.append(f"- Buy Amounts Guidelines: {buy_guidelines}")
-    if len(TRADE_EXCEPTIONS) > 0:
+    if TRADE_EXCEPTIONS:
         constraints.append(f"- Excluded stocks: {', '.join(TRADE_EXCEPTIONS)}")
 
     ai_prompt = (
@@ -131,7 +145,7 @@ def limit_watchlist_stocks(watchlist_stocks, limit):
     watchlist_stocks = sorted(watchlist_stocks, key=lambda x: x['symbol'])
 
     # Get the current month number
-    current_month = datetime.now().month
+    current_month = datetime.now(timezone.utc).month # from datetime import timezone
 
     # Calculate the number of parts
     num_parts = (len(watchlist_stocks) + limit - 1) // limit  # Ceiling division
@@ -158,7 +172,8 @@ def trading_bot():
     for stock in portfolio_stocks.values():
         portfolio_stocks_value += float(stock['price']) * float(stock['quantity'])
     portfolio = [f"{symbol} ({round(float(stock['price']) * float(stock['quantity']) / portfolio_stocks_value * 100, 2)}%)" for symbol, stock in portfolio_stocks.items()]
-    logger.info(f"Portfolio stocks to proceed: {'None' if len(portfolio) == 0 else ', '.join(portfolio)}")
+    portfolio_status = 'None' if len(portfolio) == 0 else ', '.join(portfolio)
+    logger.info(f"Portfolio stocks to proceed: {portfolio_status}")
 
     logger.info("Prepare portfolio stocks for AI analysis...")
     portfolio_overview = {}
@@ -293,7 +308,7 @@ async def main():
                 logger.info("Login to Robinhood...")
                 login_resp = await robinhood.login_to_robinhood()
                 if not login_resp or 'expires_in' not in login_resp:
-                    raise Exception("Failed to login to Robinhood")
+                    raise ValueError(f"Failed to login to Robinhood. Response: {login_resp}")
                 robinhood_token_expiry = time.time() + login_resp['expires_in']
                 logger.info(f"Successfully logged in. Token expires in {login_resp['expires_in']} seconds")
 
@@ -322,7 +337,7 @@ async def main():
 
 # Run the main function
 if __name__ == '__main__':
-    confirm = input(f"Are you sure you want to run the bot in {MODE} mode? (yes/no): ")
+    confirm = input("Are you sure you want to run the bot in {} mode? (yes/no): ".format(MODE))
     if confirm.lower() != "yes":
         logger.warning("Exiting the bot...")
         # exit()
