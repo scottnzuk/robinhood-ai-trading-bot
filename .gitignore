@@ -1,3 +1,11 @@
+Your updated .gitignore content here
+# Ignore hidden files and directories
+.*
+!.gitignore
+# Ignore clinerules files
+.clinerules
+.clinerules-*
+!.env
 # Python
 __pycache__/
 *.py[cod]

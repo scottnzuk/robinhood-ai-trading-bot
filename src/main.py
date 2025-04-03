@@ -5,7 +5,7 @@ import argparse
 from datetime import datetime, timedelta, UTC
 from typing import Dict, Any
 
-from src.api import RobinhoodClient
+from src.api import RobinhoodClient, login_to_robinhood, get_account_info
 from src.utils.logger import logger
 from config import MODE, TRADING_INTERVAL_MINUTES, MAX_TRADES_PER_DAY
 from src.api.trading_utils import is_market_open
@@ -32,7 +32,10 @@ class TradingBot:
         
         if not await self.rh_client.authenticate():
             logger.error("Failed to authenticate with Robinhood")
-            sys.exit(1)
+            if self.demo_mode:
+                raise Exception("Failed to authenticate with Robinhood")
+            else:
+                sys.exit(1)
             
         while True:
             try:
