@@ -15,7 +15,7 @@ class RobinhoodClient:
         try:
             login_info = r.login(username=username, password=password, store_session=True)
             self.session = login_info
-            debug(f"Login successful with username: {username}, password: {password}")
+            debug(f"Login successful for username: {username}")
             debug(f"Login_info: {login_info}")
             return self.session
         except Exception as e:
