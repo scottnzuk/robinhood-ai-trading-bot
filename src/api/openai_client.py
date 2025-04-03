@@ -44,7 +44,7 @@ PROVIDER_CONFIG = {
     },
     AIProvider.DEEPSEEK: {
         "base_url": "https://api.deepseek.com/v1",
-        "api_key": "sk-4d3e05c949104127af415c55eba28a36",
+        "api_key": os.getenv("DEEPSEEK_API_KEY"),
         "default_model": "deepseek-chat"
     },
     AIProvider.OPENROUTER: {
