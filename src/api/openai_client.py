@@ -28,7 +28,6 @@ class AIProvider(Enum):
     DEEPSEEK = "deepseek"
     OPENROUTER = "openrouter"
 
-# Define the default AI provider
 DEFAULT_AI_PROVIDER = AIProvider.REQUESTY
 
 PROVIDER_CONFIG = {
@@ -53,6 +52,22 @@ PROVIDER_CONFIG = {
         "default_model": "openai/gpt-4"
     }
 }
+
+class OpenAIClient:
+    """Client for OpenAI-compatible APIs"""
+    
+    def __init__(self, provider: AIProvider = None):
+        self.provider = provider or AIProvider(DEFAULT_AI_PROVIDER)
+        self.config = PROVIDER_CONFIG[self.provider]
+        
+    def get_completion(self, prompt: str, **kwargs) -> str:
+        """Get completion from the configured provider"""
+        try:
+            result = make_ai_request(prompt, provider=self.provider, **kwargs)
+            return result['choices'][0]['message']['content']
+        except Exception as e:
+            logger.error(f"Completion failed: {str(e)}")
+            raise
 
 def get_top_finance_models() -> Dict[str, Any]:
     """Get list of top finance-focused models from OpenRouter"""

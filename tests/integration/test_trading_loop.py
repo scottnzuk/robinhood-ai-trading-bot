@@ -59,8 +59,9 @@ async def test_market_analysis(mock_decisions, mock_market, trading_bot):
 @patch('src.main.login_to_robinhood')
 @patch('src.main.is_market_open')
 @patch('src.main.get_account_info')
-async def test_error_handling(mock_account, mock_market, mock_login, trading_bot):
+async def test_error_handling(mock_account, mock_market, mock_login):
     """Test error handling in trading loop"""
+    trading_bot = TradingBot(demo_mode=True)
     mock_login.return_value = True
     mock_market.return_value = True
     mock_account.side_effect = Exception("Test error")

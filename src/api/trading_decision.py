@@ -183,10 +183,37 @@ class TradingDecisionEngine:
         Note: Ensure confidence scores reflect thorough analysis and avoid speculative recommendations.
         Prioritize risk management and portfolio balance in your decisions.
         """
-
     def _parse_ai_response(self, response: Dict) -> Dict[str, TradingDecision]:
         decisions = {}
         
         if not isinstance(response, dict) or "recommendations" not in response:
             raise ValueError("Invalid AI response format")
+            
+        for rec in response["recommendations"]:
+            try:
+                decisions[rec["symbol"]] = TradingDecision(
+                    symbol=rec["symbol"],
+                    decision=DecisionType(rec["decision"].lower()),
+                    quantity=rec.get("quantity"),
+                    price_target=rec.get("price_target"),
+                    confidence=rec["confidence"],
+                    reasoning=rec["reasoning"]
+                )
+            except Exception as e:
+                error(f"Failed to parse recommendation: {str(e)}")
+                continue
+                
+        return decisions
+
+def make_trading_decisions(ai_provider: str = "openai") -> Dict[str, TradingDecision]:
+    """Make trading decisions using the specified AI provider.
+    
+    Args:
+        ai_provider: Name of AI provider ('openai' or other supported providers)
+        
+    Returns:
+        Dictionary of trading decisions keyed by symbol
+    """
+    engine = TradingDecisionEngine(ai_provider=AIProvider(ai_provider.lower()))
+    return engine.analyze_market()
             

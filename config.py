@@ -16,6 +16,8 @@ ROBINHOOD_PASSWORD = os.getenv('ROBINHOOD_PASSWORD', '')
 ROBINHOOD_MFA_SECRET = os.getenv('ROBINHOOD_MFA_SECRET', '')
 
 # Basic config parameters
+DEMO_MODE = True  # Set to False for real trading
+
 MODE = os.getenv('MODE', 'test')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
 RUN_INTERVAL_SECONDS = int(os.getenv('RUN_INTERVAL_SECONDS', '60'))
