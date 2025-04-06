@@ -25,7 +25,6 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
-
 # Secrets
 secrets/
 *.key
@@ -33,3 +32,20 @@ secrets/
 *.crt
 *.token
 *.secret
+
+# Additional ignores for cleanup and maintainability (2025-04-06)
+.venv/
+__pypackages__/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+checkpoints/
+*.sqlite3
+*.db
+.vscode/
+*.egg-info/
+dist/
+build/
+
