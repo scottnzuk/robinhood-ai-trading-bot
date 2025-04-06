@@ -62,19 +62,33 @@ class AIProviderClient:
         }[provider]
         
     def _select_provider(self) -> Optional[AIProvider]:
-        """Select the highest priority available provider"""
-        # First try the default configured provider
+        """
+        Select the highest priority available provider.
+
+        Tries the default provider first, then falls back to the priority list.
+        Returns:
+            The selected AIProvider enum member or None if none available.
+        """
+        # Prefer default configured provider
         if DEFAULT_AI_PROVIDER in self.providers:
             return DEFAULT_AI_PROVIDER
-            
-        # Fall back to priority order
+
+        # Otherwise, select first available in priority order
         for provider in PROVIDER_PRIORITY:
             if provider in self.providers:
                 return provider
         return None
-        
+
     def _check_provider_online(self, provider: AIProvider) -> bool:
-        """Check if provider is online"""
+        """
+        Check if a provider is online by querying its /models endpoint.
+
+        Args:
+            provider: The AIProvider enum member.
+
+        Returns:
+            True if provider responds with HTTP 200, False otherwise.
+        """
         try:
             response = requests.get(
                 f"{self.providers[provider]['base_url']}/models",
@@ -84,18 +98,28 @@ class AIProviderClient:
             return response.status_code == 200
         except Exception:
             return False
-            
+
     def _attempt_failover(self) -> bool:
-        """Attempt to failover to next available provider"""
+        """
+        Attempt to failover to the next available provider in priority order.
+
+        Failover occurs only if the failover interval has elapsed.
+        Updates self.active_provider if successful.
+
+        Returns:
+            True if failover succeeded, False otherwise.
+        """
         current_time = time.time()
         if current_time - self.last_failover_time < self.failover_interval:
             return False
-            
+
         self.last_failover_time = current_time
         for provider in PROVIDER_PRIORITY:
-            if (provider in self.providers and 
-                provider != self.active_provider and
-                self._check_provider_online(provider)):
+            if (
+                provider in self.providers
+                and provider != self.active_provider
+                and self._check_provider_online(provider)
+            ):
                 logger.warning(f"Failing over to {provider.name} provider")
                 self.active_provider = provider
                 return True

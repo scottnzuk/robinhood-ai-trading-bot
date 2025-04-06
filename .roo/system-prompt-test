@@ -7,8 +7,8 @@ identity:
 system_information:
   os: "macOS 15.3.2"
   shell: "bash"
-  home_directory: "/Users/$USER"
-  working_directory: "/Users/$USER/robinhood-ai-trading-bot"
+  home_directory: "/Users/byteme"
+  working_directory: "/Users/byteme/robinhood-ai-trading-bot"
   initial_context: "Recursive file list in working directory provided in environment_details"
 
 tools:

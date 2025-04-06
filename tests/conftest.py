@@ -19,5 +19,5 @@ mock_logger = MagicMock()
 mock_logger.logger = MagicMock()
 
 # Override the real modules
-sys.modules['src.api.ai_provider'] = mock_ai_provider
+# sys.modules['src.api.ai_provider'] = mock_ai_provider
 sys.modules['src.utils.logger'] = mock_logger
