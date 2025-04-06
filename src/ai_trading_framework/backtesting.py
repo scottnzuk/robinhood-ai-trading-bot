@@ -1,135 +1,73 @@
-import asyncio
-from typing import List, Dict, Optional
 import numpy as np
+import torch
+import json
+import os
+from datetime import datetime
 
-from ai_trading_framework.data_ingestion import DataIngestion
-from ai_trading_framework.rl_agents.a3c import A3CAgent
+class Backtester:
+    def __init__(self, model, data_loader, horizons=(10, 60, 240), device='cpu'):
+        self.model = model
+        self.data_loader = data_loader
+        self.horizons = horizons
+        self.device = device
+        self.results_dir = "backtest_results"
+        os.makedirs(self.results_dir, exist_ok=True)
 
-# -------- Data Loader --------
-class DataLoader:
-    def __init__(self, config):
-        self.ingestion = DataIngestion(config)
+    def walk_forward_validation(self, window_size=1000, step_size=100):
+        results = []
+        n_samples = len(self.data_loader)
+        for start in range(0, n_samples - window_size, step_size):
+            end = start + window_size
+            train_data = self.data_loader.get_slice(0, end)
+            test_data = self.data_loader.get_slice(end, end + step_size)
 
-    async def load_historical(self, symbol: str, timeframe: str, steps: int = 1000) -> List[Dict]:
-        data = []
-        for _ in range(steps):
-            batch = await self.ingestion.fetch_market_data(symbol, timeframe)
-            if batch:
-                data.extend(batch)
-            await asyncio.sleep(0.01)
-        return data
+            # Placeholder: update model here
+            # self.model.fit(train_data)
 
-# -------- Simulation Engine --------
-class SimulationEngine:
-    def __init__(self, initial_cash: float = 10000):
-        self.initial_cash = initial_cash
-        self.reset()
+            metrics = self.evaluate(test_data)
+            results.append(metrics)
 
-    def reset(self):
-        self.cash = self.initial_cash
-        self.holdings = 0
-        self.portfolio_value = self.initial_cash
-        self.history = []
-
-    def step(self, price: float, action: int):
-        """
-        action: 0=hold, 1=buy, 2=sell
-        """
-        if action == 1 and self.cash >= price:
-            # Buy one unit
-            self.cash -= price
-            self.holdings += 1
-        elif action == 2 and self.holdings > 0:
-            # Sell one unit
-            self.cash += price
-            self.holdings -= 1
-        # Update portfolio value
-        self.portfolio_value = self.cash + self.holdings * price
-        # Log
-        self.history.append({
-            "cash": self.cash,
-            "holdings": self.holdings,
-            "price": price,
-            "portfolio_value": self.portfolio_value,
-            "action": action
-        })
-
-# -------- RL Agent Wrapper --------
-class RLAgentWrapper:
-    def __init__(self, agent: A3CAgent):
-        self.agent = agent
-
-    def act(self, observation: np.ndarray) -> int:
-        with torch.no_grad():
-            logits, _ = self.agent.global_model(torch.FloatTensor(observation).unsqueeze(0))
-            probs = torch.softmax(logits, dim=-1)
-            action = probs.argmax().item()
-        return action
-
-# -------- Metrics Module --------
-class MetricsModule:
-    def __init__(self):
-        self.portfolio_values = []
-
-    def update(self, portfolio_value: float):
-        self.portfolio_values.append(portfolio_value)
-
-    def compute(self):
-        returns = np.diff(self.portfolio_values) / self.portfolio_values[:-1]
-        sharpe = np.mean(returns) / (np.std(returns) + 1e-8) * np.sqrt(252)
-        max_drawdown = 0
-        peak = -np.inf
-        for v in self.portfolio_values:
-            if v > peak:
-                peak = v
-            dd = (peak - v) / peak
-            if dd > max_drawdown:
-                max_drawdown = dd
-        return {
-            "final_value": self.portfolio_values[-1],
-            "sharpe_ratio": sharpe,
-            "max_drawdown": max_drawdown
-        }
-
-# -------- Backtest Orchestrator --------
-class BacktestOrchestrator:
-    def __init__(self, agent: A3CAgent, config, initial_cash=10000):
-        self.data_loader = DataLoader(config)
-        self.sim_engine = SimulationEngine(initial_cash)
-        self.agent_wrapper = RLAgentWrapper(agent)
-        self.metrics = MetricsModule()
-        self.config = config
-
-    async def run(self, symbol="BTC/USDT", timeframe="1m", steps=1000):
-        data = await self.data_loader.load_historical(symbol, timeframe, steps)
-        self.sim_engine.reset()
-        for d in data:
-            price = d["close"]
-            obs = np.array([price])  # Simplified observation
-            action = self.agent_wrapper.act(obs)
-            self.sim_engine.step(price, action)
-            self.metrics.update(self.sim_engine.portfolio_value)
-        results = self.metrics.compute()
-        print(f"Backtest Results: {results}")
+        self.save_results(results, "walk_forward")
         return results
 
-# -------- Example usage --------
-if __name__ == "__main__":
-    import torch
-    import yaml
+    def evaluate(self, data):
+        self.model.eval()
+        all_metrics = {h: [] for h in self.horizons}
+        for batch_inputs, batch_targets, _ in data:
+            with torch.no_grad():
+                outputs = self.model(batch_inputs)
+            for horizon in self.horizons:
+                out = outputs[horizon]
+                mean = out['mean'].cpu().numpy()
+                log_var = out['log_var'].cpu().numpy()
+                target = batch_targets[horizon].cpu().numpy()
+                mse = np.mean((mean - target) ** 2)
+                var = np.exp(log_var)
+                sharpes = mean / (np.sqrt(var) + 1e-8)
+                all_metrics[horizon].append({'mse': mse, 'sharpe': np.mean(sharpes)})
+        agg_metrics = {}
+        for horizon in self.horizons:
+            mse = np.mean([m['mse'] for m in all_metrics[horizon]])
+            sharpe = np.mean([m['sharpe'] for m in all_metrics[horizon]])
+            agg_metrics[horizon] = {'mse': mse, 'sharpe': sharpe}
+        return agg_metrics
 
-    # Load config (replace with actual config loading)
-    config = {
-        "api_key": "dummy",
-        "secret": "dummy"
-    }
+    def monte_carlo_simulation(self, base_data, n_sims=100):
+        sim_results = []
+        for _ in range(n_sims):
+            noise = np.random.normal(0, 1, base_data.shape)
+            sim_data = base_data + noise * 0.01
+            metrics = self.evaluate(sim_data)
+            sim_results.append(metrics)
+        self.save_results(sim_results, "monte_carlo")
+        return sim_results
 
-    # Initialize agent
-    dummy_env_name = "CartPole-v1"
-    dummy_config = {"env_name": dummy_env_name}
-    agent = A3CAgent(env_name=dummy_env_name, config=dummy_config)
-    # Load pretrained weights if available
-    # agent.load("path_to_checkpoint.pt")
+    def robustness_checks(self, data):
+        # Placeholder: adversarial perturbations, drift detection, etc.
+        pass
 
-    orchestrator = BacktestOrchestrator(agent, config)
-    asyncio.run(orchestrator.run())
+    def save_results(self, results, label):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{self.results_dir}/{label}_{timestamp}.json"
+        with open(filename, "w") as f:
+            json.dump(results, f, indent=2)

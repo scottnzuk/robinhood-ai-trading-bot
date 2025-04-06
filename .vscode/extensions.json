@@ -3,6 +3,7 @@
         "amazonwebservices.amazon-q-vscode",
         "docker.labs-ai-tools-vscode",
         "snyk-security.snyk-vulnerability-scanner",
-        "rooveterinaryinc.roo-cline"
+        "rooveterinaryinc.roo-cline",
+        "keploy.keployio"
     ]
 }

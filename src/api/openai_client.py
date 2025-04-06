@@ -38,7 +38,7 @@ PROVIDER_CONFIG = {
     },
     AIProvider.REQUESTY: {
         "base_url": "https://router.requesty.ai/v1",
-        "api_key": "sk-Bvo4Ux8pT4iQ7pY/8rqn4tkP8FsRX4DSrI3qsN9zAYf9mr7VdF81Xr182G757Yytnd17sBE5GJ1RlzFsZAtITUa12PentDPN+WKu8hCqEAo=",
+        "api_key": os.getenv("REQUESTY_API_KEY"),
         "default_model": "openai/gpt-4o-mini-2024-07-18"
     },
     AIProvider.DEEPSEEK: {

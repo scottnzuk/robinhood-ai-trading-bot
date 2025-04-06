@@ -15,9 +15,27 @@ class RiskManager:
         self.config = config
         self.portfolio = {}  # Placeholder for portfolio holdings and stats
 
-    def dynamic_position_size(self, signal_confidence: float, volatility: float, exposure: float) -> float:
+    def dynamic_position_size(
+        self,
+        signal_confidence: float,
+        volatility: float,
+        exposure: float,
+        account_balance: float = None,
+        risk_tolerance: float = None
+    ) -> float:
         """
-        Calculate position size using Kelly Criterion, volatility, and current exposure.
+        Calculate position size using Kelly Criterion, volatility, exposure,
+        and optionally account balance and risk tolerance.
+
+        Args:
+            signal_confidence (float): Model confidence score (0-1).
+            volatility (float): Current market volatility.
+            exposure (float): Current portfolio exposure (0-1).
+            account_balance (float, optional): Total account balance.
+            risk_tolerance (float, optional): Max risk per trade as fraction of balance.
+
+        Returns:
+            float: Position size as fraction of account or normalized (0-1).
         """
         p = signal_confidence
         q = 1 - p
@@ -36,11 +54,37 @@ class RiskManager:
         # Cap position size between 0 and 1
         size = max(0.0, min(1.0, size))
 
+        # If account_balance and risk_tolerance provided, scale accordingly
+        if account_balance is not None and risk_tolerance is not None:
+            dollar_risk = account_balance * risk_tolerance
+            # Assume stop distance is proportional to volatility
+            stop_distance = volatility * 2  # can be tuned
+            if stop_distance > 0:
+                size_in_dollars = dollar_risk / stop_distance
+                normalized_size = size_in_dollars / account_balance
+                size = min(size, normalized_size)
+
         return size
 
-    def optimize_stops(self, price_history: List[float], rl_model: Any = None) -> Dict:
+    def optimize_stops(
+        self,
+        price_history: List[float],
+        rl_model: Any = None,
+        confidence_score: float = None,
+        market_volatility: float = None
+    ) -> Dict:
         """
-        Optimize stop-loss and take-profit using ATR, trailing stops, or RL-based exits.
+        Optimize stop-loss and take-profit using ATR, adaptive scaling based on confidence,
+        and optionally RL-based exits.
+
+        Args:
+            price_history (List[float]): Recent price history.
+            rl_model (Any, optional): RL model for stop overrides.
+            confidence_score (float, optional): Model confidence score (0-1).
+            market_volatility (float, optional): Current market volatility.
+
+        Returns:
+            Dict: Dict with 'stop_loss' and 'take_profit' levels.
         """
         import numpy as np
 
@@ -56,8 +100,26 @@ class RiskManager:
             tr = np.maximum(high[1:] - low[1:], np.abs(high[1:] - close[:-1]), np.abs(low[1:] - close[:-1]))
             atr = np.mean(tr)
 
-        stop_loss = -2 * atr
-        take_profit = 3 * atr
+        # Base stop-loss and take-profit multipliers
+        stop_mult = 2.0
+        tp_mult = 3.0
+
+        # Adjust based on confidence score if provided
+        if confidence_score is not None:
+            # Wider stops for higher confidence, tighter for low
+            stop_scale = 1.0 + (confidence_score - 0.5)  # 0.5 -> 1.0, 1.0 -> 1.5, 0.0 -> 0.5
+            stop_scale = max(0.5, min(1.5, stop_scale))
+            stop_mult *= stop_scale
+            tp_mult *= stop_scale
+
+        # Optionally adjust further based on market volatility
+        if market_volatility is not None:
+            vol_scale = max(0.5, min(1.5, 0.2 / (market_volatility + 1e-6)))
+            stop_mult *= vol_scale
+            tp_mult *= vol_scale
+
+        stop_loss = -stop_mult * atr
+        take_profit = tp_mult * atr
 
         # If RL model is provided, override with RL policy (placeholder)
         if rl_model is not None:

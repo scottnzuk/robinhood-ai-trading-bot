@@ -8,6 +8,11 @@ import torch.multiprocessing as mp
 import ray
 from ray import tune
 
+from src.ai_trading_framework.mps_utils import safe_mps_op, timeout_async, Watchdog, log_diagnostic
+
+device = "mps" if torch.backends.mps.is_built() else "cpu"
+print(f"[INFO] Using device: {device}")
+
 # -------- Actor-Critic Network --------
 class ActorCritic(nn.Module):
     def __init__(self, input_dim, action_dim, hidden_dim=128):
@@ -26,9 +31,10 @@ class ActorCritic(nn.Module):
         return policy_logits, value
 
 # -------- Worker Process --------
+@safe_mps_op
 def worker_fn(worker_id, env_name, global_model, optimizer, config, global_counter, max_steps, result_queue):
     env = gym.make(env_name)
-    local_model = ActorCritic(env.observation_space.shape[0], env.action_space.n)
+    local_model = ActorCritic(env.observation_space.shape[0], env.action_space.n).to(device)
     local_model.load_state_dict(global_model.state_dict())
 
     gamma = config.get("gamma", 0.99)
@@ -68,15 +74,15 @@ def worker_fn(worker_id, env_name, global_model, optimizer, config, global_count
                 episode_reward = 0
                 break
 
-        R = torch.zeros(1, 1)
+        R = torch.zeros(1, 1, device=device).clone().detach()
         if not done:
             state_tensor = torch.FloatTensor(state).unsqueeze(0)
             _, value = local_model(state_tensor)
             R = value.detach()
 
-        policy_loss = torch.tensor(0.0)
-        value_loss = torch.tensor(0.0)
-        gae = torch.zeros(1, 1)
+        policy_loss = torch.tensor(0.0, device=device).clone().detach()
+        value_loss = torch.tensor(0.0, device=device).clone().detach()
+        gae = torch.zeros(1, 1, device=device).clone().detach()
         for i in reversed(range(len(rewards))):
             R = gamma * R + rewards[i]
             advantage = R - values[i]
@@ -108,11 +114,12 @@ class A3CAgent:
         dummy_env = gym.make(env_name)
         obs_dim = dummy_env.observation_space.shape[0]
         action_dim = dummy_env.action_space.n
-        self.global_model = ActorCritic(obs_dim, action_dim)
+        self.global_model = ActorCritic(obs_dim, action_dim).to(device)
         self.global_model.share_memory()
         self.optimizer = optim.Adam(self.global_model.parameters(), lr=config.get("lr", 1e-3))
         self.max_steps = config.get("max_steps", 1e6)
 
+    @safe_mps_op
     def train(self):
         mp.set_start_method('spawn', force=True)
         global_counter = mp.Value('i', 0)

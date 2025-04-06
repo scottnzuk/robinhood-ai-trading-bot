@@ -1,74 +1,74 @@
-import requests
-import pandas as pd
 import os
 import time
+import ccxt
+import requests
+import json
+from datetime import datetime
 
-def fetch_full_history(symbol, interval="1d", max_days=1000):
-    symbol_clean = symbol.replace("/", "")
-    url = "https://api.binance.com/api/v3/klines"
-    all_data = []
-    end_time = int(time.time() * 1000)
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
 
+TIMEFRAMES = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d", "3d", "1w", "1M"]
+EXCHANGES = ["binance", "coinbasepro", "kraken", "bitfinex", "bybit", "kucoin", "okx"]
+
+def fetch_candles(exchange, symbol, timeframe, limit=2000):
+    since = None
+    all_candles = []
     while True:
-        params = {
-            "symbol": symbol_clean,
-            "interval": interval,
-            "limit": 1000,
-            "endTime": end_time
-        }
-        response = requests.get(url, params=params)
-        data = response.json()
-
-        if not data:
+        candles = exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=limit)
+        if not candles:
             break
-
-        all_data = data + all_data
-        first_open_time = data[0][0]
-
-        if len(all_data) >= max_days or len(data) < 1000:
+        all_candles.extend(candles)
+        if len(candles) < limit:
             break
+        since = candles[-1][0] + 1
+        time.sleep(exchange.rateLimit / 1000)
+    return all_candles
 
-        end_time = first_open_time - 1
+def save_candles(exchange_name, symbol, timeframe, candles):
+    safe_symbol = symbol.replace("/", "_")
+    filename = f"{DATA_DIR}/{exchange_name}_{safe_symbol}_{timeframe}.json"
+    with open(filename, "w") as f:
+        json.dump(candles, f)
 
-    parsed = []
-    for d in all_data[-max_days:]:
-        parsed.append({
-            "timestamp": d[0],
-            "open": float(d[1]),
-            "high": float(d[2]),
-            "low": float(d[3]),
-            "close": float(d[4]),
-            "volume": float(d[5])
-        })
-
-    os.makedirs("data/crypto", exist_ok=True)
-    df = pd.DataFrame(parsed)
-    df.to_csv(f"data/crypto/{symbol_clean}_{interval}_full.csv", index=False)
-    print(f"Saved {len(df)} candles for {symbol} to {symbol_clean}_{interval}_full.csv")
-
-def main():
-    # Fetch all USDT trading pairs
-    url = "https://api.binance.com/api/v3/exchangeInfo"
-    try:
-        response = requests.get(url)
-        data = response.json()
-        symbols = []
-        for s in data['symbols']:
-            if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING':
-                base = s['baseAsset']
-                pair = f"{base}/USDT"
-                symbols.append(pair)
-    except Exception as e:
-        print(f"Error fetching symbols: {e}")
-        return
-
-    print(f"Found {len(symbols)} USDT pairs.")
-
-    for symbol in symbols:
+def fetch_all():
+    for ex_name in EXCHANGES:
         try:
-            fetch_full_history(symbol)
-        except Exception as e:
-            print(f"Error fetching {symbol}: {e}")
+            ex = getattr(ccxt, ex_name)({'enableRateLimit': True})
+            ex.load_markets()
+        except Exception:
+            continue
+        for symbol in ex.symbols:
+            for tf in TIMEFRAMES:
+                try:
+                    print(f"Fetching {ex_name} {symbol} {tf}")
+                    candles = fetch_candles(ex, symbol, tf)
+                    save_candles(ex_name, symbol, tf, candles)
+                except Exception:
+                    continue
+
+def fetch_web3_data():
+    # Whale alerts (via Whale Alert API or similar)
+    try:
+        r = requests.get("https://api.whale-alert.io/v1/transactions?api_key=demo&min_value=500000&currency=usd")
+        if r.status_code == 200:
+            with open(f"{DATA_DIR}/whale_alerts.json", "w") as f:
+                json.dump(r.json(), f)
+    except:
+        pass
+
+    # Gas fees (Etherscan API or similar)
+    try:
+        r = requests.get("https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=YourApiKeyToken")
+        if r.status_code == 200:
+            with open(f"{DATA_DIR}/gas_fees.json", "w") as f:
+                json.dump(r.json(), f)
+    except:
+        pass
+
+    # Wallet flows (Glassnode, Nansen, or other APIs if available)
+    # Placeholder: add your own API integration here
 
 if __name__ == "__main__":
-    main()
+    fetch_all()
+    fetch_web3_data()

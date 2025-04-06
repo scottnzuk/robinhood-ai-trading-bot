@@ -1,37 +1,27 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: Current File",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python: Benchmark",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "src.main",
-            "args": ["--benchmark"],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "Python: Attach",
-            "type": "debugpy",
-            "request": "attach",
-            "connect": {
-                "host": "localhost",
-                "port": 5678
-            }
-        },
-        {
-            "name": "Python: Module",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "${command:python.interpreterPath}",
-            "args": ["-m", "src.main"],
-            "console": "integratedTerminal"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Hybrid AI Trading Bot",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/ai_trading_framework/main_loop.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Debug Unit Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
 }

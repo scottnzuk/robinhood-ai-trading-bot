@@ -304,3 +304,49 @@ scott (https://github.com/scottnzuk/robinhood-ai-trading-bot.git)
 - Complete integration and benchmark tests.
 - Continue iterative refactoring and validation.
 [2025-04-06 06:30:45] - Activated Roo Autonomous Execution Extension. Roo will now recursively plan, auto-switch modes, minimize prompts, and proceed with a 5-second countdown before major steps. Overrides default confirmation behavior. See 'roo_autonomy_extension.md' for details.
+## [2025-04-06 12:12:06] - Risk Profile Selection Modes
+**Options Considered:**
+1. Single advanced configuration interface (full control, complex)
+2. Simple slider bar with 10 discrete risk levels (easy, less granular)
+3. Both modes selectable by user (flexibility)
+
+**Chosen Solution:**
+Support **two modes** for risk profile selection:
+- **Advanced Mode:** exposes all risk parameters for expert tuning
+- **Slider Mode:** simple UI with 10 notches (0-9) mapping to preset risk profiles
+
+**Rationale:**
+Provides accessibility for beginners via slider, while allowing full control for experts. Enables quick switching and user-friendly onboarding.
+## [2025-04-06 12:22:06] - Integration of YOLOv8s Stock Market Pattern Detection
+**Summary:**
+Incorporate FODUU AI's YOLOv8s real-time screen-capture pattern detection model into the trading system.
+
+**Capabilities:**
+- Detects 'Head and shoulders', 'M_Head', 'StockLine', 'Triangle', 'W_Bottom' in live charts
+- Logs detections, annotates images, saves Excel logs, generates annotated videos
+- Enables real-time pattern-based alerts and strategy triggers
+
+**Integration Plan:**
+- Run YOLOv8s detection loop in parallel with trading engine
+- Feed detected pattern events into scenario injector and adaptive feedback
+- Use pattern detections as features or triggers for AI models
+- Store annotated images and logs for post-trade analysis
+
+**Rationale:**
+Enhances system's situational awareness by automating technical pattern recognition, improving decision-making and adaptive learning.
+
+[2025-04-06 14:24] - Finalized modular AI trading system architecture with Trading-Hero-LLM integration.
+**Options Considered:**
+1. Monolithic script (simple, less scalable)
+2. Modular components with clear APIs (scalable, maintainable)
+**Chosen Solution:** Modular architecture with separate ingestion, sentiment, signal, decision, execution, and feedback modules, enabling scalability and easier maintenance.
+
+
+## 2025-04-06 16:43 - Decorator Integration
+- Upgraded `safe_mps_op` to support async and sync functions.
+- Applied `@timeout_async` and `@safe_mps_op` to:
+  - `main_training_loop()` (timeout=300s)
+  - `trading_loop`, `continual_learning_loop`, `monitoring_loop` (timeout=60s)
+- Purpose: Improve resilience, prevent hangs, handle MPS errors gracefully.
+- Next: Extend to RL agents, improve logging, add tests.
+

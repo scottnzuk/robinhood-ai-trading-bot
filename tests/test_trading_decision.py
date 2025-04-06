@@ -19,9 +19,10 @@ def test_build_analysis_prompt(engine):
 
 def test_parse_ai_response(engine):
     mock_response = {
-        "choices": [
-            {"message": {"content": '{"AAPL": "BUY", "TSLA": "SELL"}'}}
-        ]
+        "recommendations": {
+            "AAPL": "BUY",
+            "TSLA": "SELL"
+        }
     }
     parsed = engine._parse_ai_response(mock_response)
     assert isinstance(parsed, dict)

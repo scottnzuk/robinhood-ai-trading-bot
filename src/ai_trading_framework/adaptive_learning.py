@@ -43,6 +43,17 @@ class OnlineLearner:
         self.model = model
         self.replay_buffer = []
         self.buffer_size = buffer_size
+        self.feature_pipeline = None
+        self.signal_generator = None
+        self.performance_history = []
+
+    def connect_feature_pipeline(self, pipeline):
+        """Attach feature engineering pipeline"""
+        self.feature_pipeline = pipeline
+
+    def connect_signal_generator(self, generator):
+        """Attach signal generator"""
+        self.signal_generator = generator
 
     def add_experience(self, data_point: Any):
         """
@@ -66,6 +77,21 @@ class OnlineLearner:
             # Model does not support incremental updates
             pass
 
+    def evaluate_performance(self, X_val, y_val, metric_fn):
+        """Evaluate model and trigger self-improvement if needed"""
+        preds = self.model.predict(X_val)
+        score = metric_fn(y_val, preds)
+        self.performance_history.append(score)
+        # Placeholder: trigger retraining/meta-learning if performance drops
+        if len(self.performance_history) > 5:
+            recent = self.performance_history[-5:]
+            if sum(recent)/len(recent) < 0.5:  # Example threshold
+                self._trigger_self_improvement()
+
+    def _trigger_self_improvement(self):
+        """Placeholder for self-improvement logic"""
+        print("Triggering self-improvement cycle (hyperparam tuning, retraining, etc.)")
+        # Future: implement hyperparameter search, model reset, etc.
 
 class MetaOptimizer:
     """
@@ -88,6 +114,13 @@ class MetaOptimizer:
             "num_layers": 3
         }
         return best_params
+
+    def update_hyperparams(self, model: Any, params: Dict):
+        """
+        Update model hyperparameters dynamically
+        """
+        if hasattr(model, 'set_params'):
+            model.set_params(**params)
 
 
 class AdversarialTrainer:
