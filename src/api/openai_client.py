@@ -145,5 +145,6 @@ def make_ai_request(
         return json.loads(response.json())
 
     except Exception as e:
-        logger.error(f"Error with {provider.value}: {str(e)}")
+        provider_name = provider.value if provider else "unknown"
+        logger.error(f"Error with {provider_name}: {str(e)}")
         raise

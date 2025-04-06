@@ -26,12 +26,18 @@ async def test_bot_initialization(trading_bot):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-@patch('src.main.login_to_robinhood')
-async def test_auth_failure(mock_login, trading_bot):
+async def test_auth_failure():
     """Test authentication failure handling"""
-    mock_login.return_value = False
+    from src.main import TradingBot
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock_rh_client = MagicMock()
+    mock_rh_client.authenticate = AsyncMock(return_value=False)
+
+    bot = TradingBot(demo_mode=False, rh_client=mock_rh_client)
+
     with pytest.raises(SystemExit):
-        await trading_bot.run()
+        await asyncio.wait_for(bot.run(), timeout=5.0)
 
 @pytest.mark.integration
 @pytest.mark.asyncio

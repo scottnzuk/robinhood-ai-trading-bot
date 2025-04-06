@@ -20,22 +20,60 @@ class ExecutionEngine:
         """
         Compute optimal order size using Kelly Criterion, volatility, and liquidity.
         """
-        # TODO: Implement Kelly sizing + liquidity adjustment
-        return 0.0
+        p = signal_confidence
+        q = 1 - p
+        b = 1  # reward/risk ratio
+
+        kelly_fraction = (b * p - q) / b
+
+        # Adjust for volatility
+        vol_adjustment = max(0.1, min(1.0, 0.2 / (volatility + 1e-6)))
+
+        # Adjust for liquidity
+        spread = liquidity_metrics.get("spread", 0.01)
+        depth = liquidity_metrics.get("depth", 1e6)
+        liquidity_factor = min(1.0, max(0.1, depth / 1e6)) * max(0.1, 0.05 / (spread + 1e-6))
+
+        size = kelly_fraction * vol_adjustment * liquidity_factor
+
+        size = max(0.0, min(1.0, size))
+
+        return size
 
     async def select_order_type(self, liquidity_metrics: Dict, urgency: float) -> str:
         """
         Select order type (TWAP, VWAP, market, limit, iceberg) based on liquidity and urgency.
         """
-        # TODO: Implement adaptive order type selection
-        return "limit"
+        spread = liquidity_metrics.get("spread", 0.01)
+        depth = liquidity_metrics.get("depth", 1e6)
+
+        if urgency > 0.8:
+            return "market"
+        elif spread < 0.005 and depth > 1e6:
+            return "limit"
+        elif depth < 5e5:
+            return "iceberg"
+        else:
+            return "twap"
 
     async def place_order(self, symbol: str, side: str, size: float, order_type: str, price: Optional[float] = None) -> Dict:
         """
         Place an order with the exchange.
         """
-        # TODO: Implement order placement via API
-        return {"status": "submitted"}
+        # Placeholder: simulate order placement
+        # TODO: Integrate with exchange API (e.g., CCXT, broker SDK)
+
+        order = {
+            "symbol": symbol,
+            "side": side,
+            "size": size,
+            "type": order_type,
+            "price": price,
+            "status": "submitted",
+            "order_id": "SIM123456"
+        }
+
+        return order
 
     async def execute_trade(self, signal: Dict):
         """

@@ -1,4 +1,5 @@
 import logging
+import os
 
 class OnePassword:
     def __init__(self, domain="my.1password.com"):
@@ -8,10 +9,12 @@ class OnePassword:
 
     def get_robinhood_credentials(self):
         try:
-            # Placeholder for actual implementation
-            credentials = {"username": "example_user", "password": "example_password"}
+            credentials = {
+                "username": os.getenv("RH_USERNAME"),
+                "password": os.getenv("RH_PASSWORD")
+            }
             print(f"Retrieved Robinhood credentials: {credentials}")
-            logging.error(f"Failed to retrieve Robinhood credentials: {e}")
+            return credentials
         except Exception as e:
             logging.error(f"Failed to retrieve Robinhood credentials: {e}")
             return None

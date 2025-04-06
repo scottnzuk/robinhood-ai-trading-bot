@@ -166,3 +166,32 @@ Common exceptions:
 
 Please refer to the detailed documentation and README in the `memory-bank` folder for more information.
 - [ ] Add memory bank visualization feature
+
+## Workspace Diagnostics Tips
+
+If you encounter errors like:
+
+> *Unable to resolve nonexistent file `/var/folders/.../robinhood-ai-trading-bot_mainXXXX`*
+
+follow these steps:
+
+1. **Close VSCode fully.**
+2. **Run the cleanup script:**
+
+```bash
+bash scripts/clean_vscode_cache.sh
+```
+
+3. **Reopen VSCode.**
+4. **Reload the language server** (Command Palette > Reload Window).
+5. **Run linters manually:**
+
+```bash
+flake8 .
+pylint src/ tests/
+```
+
+6. **Verify Python interpreter and dependencies.**
+
+See `workspace_diagnostics_maintenance_plan.md` for full details.
+

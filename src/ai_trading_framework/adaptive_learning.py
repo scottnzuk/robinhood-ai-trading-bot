@@ -14,8 +14,23 @@ class MarketRegimeDetector:
         """
         Analyze features and return regime label.
         """
-        # TODO: Implement regime detection
-        return "unknown"
+        import numpy as np
+
+        mean_return = np.mean(features)
+        volatility = np.std(features)
+
+        if mean_return > 0.01 and volatility < 0.02:
+            return "bull"
+        elif mean_return < -0.01 and volatility < 0.02:
+            return "bear"
+        elif mean_return < -0.01 and volatility >= 0.02:
+            return "volatile_bear"
+        elif mean_return > 0.01 and volatility >= 0.02:
+            return "volatile_bull"
+        elif abs(mean_return) <= 0.01 and volatility < 0.02:
+            return "sideways"
+        else:
+            return "unknown"
 
 
 class OnlineLearner:
@@ -41,8 +56,15 @@ class OnlineLearner:
         """
         Incrementally update model with replay buffer.
         """
-        # TODO: Implement online learning update
-        pass
+        if hasattr(self.model, "partial_fit"):
+            for data_point in self.replay_buffer:
+                try:
+                    self.model.partial_fit([data_point[0]], [data_point[1]])
+                except Exception:
+                    continue  # Ignore errors for now
+        else:
+            # Model does not support incremental updates
+            pass
 
 
 class MetaOptimizer:
@@ -58,8 +80,14 @@ class MetaOptimizer:
         """
         Optimize model hyperparameters/architecture.
         """
-        # TODO: Implement meta-optimization
-        return {}
+        # Placeholder: return static hyperparameters
+        # TODO: Replace with Bayesian optimization or evolutionary search
+        best_params = {
+            "learning_rate": 0.01,
+            "batch_size": 64,
+            "num_layers": 3
+        }
+        return best_params
 
 
 class AdversarialTrainer:
@@ -75,15 +103,36 @@ class AdversarialTrainer:
         """
         Create adversarial or synthetic data samples.
         """
-        # TODO: Implement adversarial data generation
-        return data
+        import numpy as np
+
+        # Placeholder: add small Gaussian noise
+        noise = np.random.normal(0, 0.01, size=np.array(data).shape)
+        adversarial_data = np.array(data) + noise
+
+        # TODO: Replace with FGSM or PGD adversarial attack methods
+        return adversarial_data
 
     def train_with_adversarial(self, model: Any, data: Any):
         """
         Train model with adversarial examples.
         """
-        # TODO: Implement adversarial training
-        pass
+        adv_data = self.generate_adversarial_data(data)
+
+        try:
+            if hasattr(model, "partial_fit"):
+                # Assume data is (X, y)
+                X_adv, y_adv = adv_data
+                model.partial_fit(X_adv, y_adv)
+            elif hasattr(model, "fit"):
+                X_adv, y_adv = adv_data
+                model.fit(X_adv, y_adv)
+            else:
+                # Model does not support training interface
+                pass
+        except Exception:
+            pass  # Ignore errors for now
+
+        # TODO: Improve adversarial training integration
 
 
 class ModelManager:
@@ -98,19 +147,48 @@ class ModelManager:
         """
         Save model and metadata.
         """
-        # TODO: Implement model saving
-        pass
+        import os
+        import joblib
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        model_dir = os.path.join(self.storage_path, "models")
+        os.makedirs(model_dir, exist_ok=True)
+
+        model_path = os.path.join(model_dir, f"model_{timestamp}.pkl")
+        joblib.dump({"model": model, "metadata": metadata}, model_path)
 
     def load_model(self, version: Optional[str] = None) -> Any:
         """
         Load specific model version.
         """
-        # TODO: Implement model loading
-        return None
+        import os
+        import joblib
+        from glob import glob
+
+        model_dir = os.path.join(self.storage_path, "models")
+        if not os.path.exists(model_dir):
+            return None
+
+        if version:
+            model_path = os.path.join(model_dir, f"model_{version}.pkl")
+        else:
+            # Load latest model
+            model_files = sorted(glob(os.path.join(model_dir, "model_*.pkl")))
+            if not model_files:
+                return None
+            model_path = model_files[-1]
+
+        if not os.path.exists(model_path):
+            return None
+
+        data = joblib.load(model_path)
+        return data.get("model", None)
 
     def select_best_model(self, metrics: Dict[str, float]) -> str:
         """
         Select best model based on validation metrics.
         """
-        # TODO: Implement model selection logic
+        # Placeholder: select latest model
+        # TODO: Implement selection based on validation metrics (e.g., Sharpe ratio, loss)
         return "latest"

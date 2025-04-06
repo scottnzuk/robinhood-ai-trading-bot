@@ -12,7 +12,7 @@ from src.api.trading_utils import is_market_open
 from src.api.trading_decision import make_trading_decisions
 
 class TradingBot:
-    def __init__(self, demo_mode: bool = False):
+    def __init__(self, demo_mode: bool = False, rh_client: RobinhoodClient = None):
         self.trade_count = 0
         self.last_trade_time = None
         self.session_start = datetime.now(UTC)
@@ -23,12 +23,14 @@ class TradingBot:
             'errors': 0,
             'last_decision_time': None
         }
+        self.rh_client = rh_client  # Injected or None
         
     async def run(self):
         """Main trading loop"""
         logger.info(f"Starting trading bot session {'(DEMO MODE)' if self.demo_mode else ''}")
         
-        self.rh_client = RobinhoodClient()
+        if self.rh_client is None:
+            self.rh_client = RobinhoodClient()
         
         if not await self.rh_client.authenticate():
             logger.error("Failed to authenticate with Robinhood")

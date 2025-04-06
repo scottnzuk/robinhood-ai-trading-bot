@@ -1,93 +1,33 @@
-# AI Trading Bot Project — Next Steps Plan
+# Immediate Implementation Plan (April 2025)
 
-## 1. Code Quality & Architecture
+## 1. Implement A3C agent with Ray Tune integration
+- Review existing `a3c.py` content.
+- Define `A3CAgent` class with:
+  - Parallel actor-learner threads using multiprocessing or Ray actors.
+  - Shared global model (policy + value network).
+  - Async gradient updates.
+  - Ray Tune integration for hyperparameter search (learning rate, entropy coeff, etc.).
+  - Save checkpoints, restore, export best model.
+- Add example Ray Tune config and training loop.
 
-- Refactor `src/` modules for clarity:
-  - Split `TradingBot` into smaller components (DataIngestion, SignalGeneration, Execution, RiskManagement)
-  - Use interfaces/abstract base classes for pluggable AI agents
-  - Add type hints & docstrings throughout
-- Brokerage API Wrappers
-  - Wrap `robin_stocks` calls with error handling, retries, and logging
-  - Abstract brokerage layer to support multi-broker in future
-- Configuration Management
-  - Centralize configs (API keys, params) via `.env` or config files
-  - Add validation & secrets management
+## 2. Develop Backtesting Workflows
+- Create data fetchers (historical prices, indicators).
+- Simulate order execution and portfolio updates.
+- Metrics: Sharpe, drawdown, win rate.
+- Integration with RL agents for evaluation.
 
-## 2. Testing Strategy
+## 3. Automate Deployment Pipeline
+- **Docker:**
+  - Dockerfile with all dependencies.
+  - Multi-stage build for smaller images.
+- **GitHub Actions:**
+  - Linting, tests, build, push Docker image.
+  - Deploy to cloud or server (optional).
 
-- Unit Tests
-  - Increase coverage on `src/` modules
-  - Mock brokerage APIs and AI providers
-- Integration Tests
-  - Simulate end-to-end trade flow with mock data
-  - Validate fallback logic and error handling
-- Benchmarking
-  - Profile latency of decision loop
-  - Track API response times
+## 4. Integrate Security Patch Monitoring & Regression Testing
+- Use Dependabot or similar for dependency updates.
+- Regression test scripts for critical workflows.
+- Alerts on vulnerabilities.
 
-## 3. Documentation
-
-- Memory Bank
-  - Update `productContext.md` with current architecture
-  - Log recent decisions & rationale in `decisionLog.md`
-  - Track open issues in `activeContext.md`
-- Codebase
-  - Add module-level docstrings
-  - Generate API docs (e.g., with Sphinx)
-- User Guide
-  - How to configure, run, and extend the bot
-  - Deployment instructions
-
-## 4. Deployment Pipeline
-
-- Containerization
-  - Create/update Dockerfile
-  - Use `docker-compose.yml` for multi-service setup (bot, database, monitoring)
-- CI/CD
-  - Add GitHub Actions or similar for:
-    - Linting
-    - Testing
-    - Build & deploy
-- Monitoring
-  - Integrate Prometheus & Grafana dashboards
-  - Alerting on failures or anomalies
-
-## 5. Target Architecture (Mermaid Diagram)
-
-```mermaid
-flowchart TD
-    subgraph AI_Trading_Bot
-        A1[Data Ingestion]
-        A2[Signal Generation]
-        A3[Execution Engine]
-        A4[Risk Manager]
-    end
-
-    subgraph Brokerage_APIs
-        B1[Robinhood]
-        B2[Gemini]
-        B3[TDA]
-    end
-
-    subgraph Meta_Learning
-        M1[Performance Analysis]
-        M2[Adaptive Routing]
-    end
-
-    A1 --> A2 --> A3 --> A4
-    A3 -->|Place Orders| B1
-    A3 -->|Place Orders| B2
-    A3 -->|Place Orders| B3
-    A2 --> M2
-    M2 --> M1
-    M1 --> A2
-```
-
-## 6. Summary
-
-- Modularize trading bot components
-- Improve brokerage abstraction
-- Enhance testing coverage
-- Update documentation & Memory Bank
-- Set up deployment pipeline
-- Add monitoring & alerting
+## 5. Update Memory Bank
+- After each milestone, append summary to `progress.md` and `decisionLog.md`.

@@ -1,3 +1,7 @@
+import requests
+import pandas as pd
+import os
+
 import asyncio
 from typing import Dict, Any, List, Optional, Protocol
 import time
@@ -23,20 +27,41 @@ class CCXTMarketFetcher:
     """
     Example market data fetcher using ccxt (mocked here).
     """
+    import requests
+    import pandas as pd
+    import os
+
     async def fetch(self, symbol: str, timeframe: str) -> List[Dict]:
-        # Simulate API latency
-        await asyncio.sleep(0.1)
-        now = int(time.time() * 1000)
-        # Return dummy OHLCV data
-        return [{
-            "timestamp": now,
-            "symbol": symbol,
-            "open": 100.0,
-            "high": 105.0,
-            "low": 95.0,
-            "close": 102.0,
-            "volume": 1234.5
-        }]
+        # Map timeframe to Binance interval
+        interval = "1d" if timeframe == "1d" else "1h"
+        limit = 1000  # Binance max per request
+        url = "https://api.binance.com/api/v3/klines"
+        params = {
+            "symbol": symbol.replace("/", ""),
+            "interval": interval,
+            "limit": limit
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+
+        # Parse Binance kline data
+        parsed = []
+        for d in data:
+            parsed.append({
+                "timestamp": d[0],
+                "open": float(d[1]),
+                "high": float(d[2]),
+                "low": float(d[3]),
+                "close": float(d[4]),
+                "volume": float(d[5])
+            })
+
+        # Save to CSV
+        os.makedirs("data/crypto", exist_ok=True)
+        df = pd.DataFrame(parsed)
+        df.to_csv(f"data/crypto/{symbol.replace('/', '')}_{interval}.csv", index=False)
+
+        return parsed
 
 
 class DummyAltDataFetcher:
