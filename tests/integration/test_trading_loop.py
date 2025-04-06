@@ -16,6 +16,7 @@ from src.api import (
 def trading_bot():
     return TradingBot()
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_bot_initialization(trading_bot):
     """Test trading bot initialization"""
@@ -23,6 +24,7 @@ async def test_bot_initialization(trading_bot):
     assert trading_bot.last_trade_time is None
     assert trading_bot.session_start is not None
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @patch('src.main.login_to_robinhood')
 async def test_auth_failure(mock_login, trading_bot):
@@ -31,6 +33,7 @@ async def test_auth_failure(mock_login, trading_bot):
     with pytest.raises(SystemExit):
         await trading_bot.run()
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @patch('src.main.is_market_open')
 @patch('src.main.make_trading_decisions')
@@ -55,6 +58,7 @@ async def test_market_analysis(mock_decisions, mock_market, trading_bot):
     except asyncio.TimeoutError:
         pytest.fail("Test timed out")
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 @patch('src.main.login_to_robinhood')
 @patch('src.main.is_market_open')

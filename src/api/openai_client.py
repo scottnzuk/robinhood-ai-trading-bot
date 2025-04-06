@@ -48,7 +48,7 @@ PROVIDER_CONFIG = {
     },
     AIProvider.OPENROUTER: {
         "base_url": "https://openrouter.ai/api/v1",
-        "api_key": "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",
+        "api_key": os.getenv("OPENROUTER_API_KEY"),
         "default_model": "openai/gpt-4"
     }
 }

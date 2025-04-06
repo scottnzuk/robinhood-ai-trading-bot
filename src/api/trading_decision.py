@@ -137,52 +137,112 @@ class TradingDecisionEngine:
 
     def _build_analysis_prompt(self, context: Dict) -> str:
         return f"""
-        As an expert trading advisor, analyze the following market context and provide detailed trading recommendations.
-        
-        CONTEXT:
-        {json.dumps(context, indent=2)}
-        
-        EVALUATION CRITERIA:
-        1. Portfolio Analysis:
-           - Current positions and their performance
-           - Portfolio diversification across sectors
-           - Risk concentration in specific sectors/stocks
-        
-        2. Market Conditions:
-           - Overall market trend and sentiment
-           - Sector-specific performance
-           - Volatility indicators and risk levels
-        
-        3. Risk Management:
-           - Position sizing relative to portfolio
-           - Market volatility considerations
-           - Sector exposure limits
-        
-        4. Technical Factors:
-           - Price momentum and trends
-           - Volume analysis
-           - Market volatility impact
-        
-        RESPONSE FORMAT:
-        Provide recommendations in JSON format with the following structure:
+You are an expert financial advisor and algorithmic trading strategist.
+
+Your task is to analyze the following market context and provide **step-by-step reasoning** before delivering **precise, actionable trading recommendations**.
+
+---
+
+### CONTEXT:
+{json.dumps(context, indent=2)}
+
+---
+
+### GUIDELINES:
+
+- **Think step-by-step** to ensure logical, well-supported conclusions.
+- **Avoid hallucinations**: Do not invent data or make unsupported assumptions.
+- If uncertain, **explicitly state uncertainty** rather than guessing.
+- Use **domain-specific financial terminology**.
+- Be **concise yet thorough**.
+- Prioritize **risk management** and **portfolio diversification**.
+- Remember prior context and maintain consistency if multi-turn.
+- Format your output **strictly as specified** below.
+
+---
+
+### EVALUATION CRITERIA:
+
+1. **Portfolio Analysis**
+   - Current positions and performance
+   - Diversification across sectors
+   - Risk concentration
+
+2. **Market Conditions**
+   - Overall trend and sentiment
+   - Sector-specific performance
+   - Volatility indicators
+
+3. **Risk Management**
+   - Position sizing
+   - Volatility considerations
+   - Exposure limits
+
+4. **Technical Factors**
+   - Price momentum
+   - Volume analysis
+   - Volatility impact
+
+---
+
+### RESPONSE FORMAT:
+
+Provide your recommendations in **valid JSON** with this structure:
+
+{{
+    "recommendations": [
         {{
-            "recommendations": [
-                {{
-                    "symbol": "TICKER",              // Stock symbol (required)
-                    "decision": "buy/sell/hold",     // Trading decision (required)
-                    "quantity": 100,                 // Number of shares (optional)
-                    "price_target": 150.00,         // Target price (required for buy/sell)
-                    "confidence": 0.85,             // Confidence score 0-1 (required)
-                    "reasoning": "Detailed analysis" // Explanation (required)
-                }}
-            ],
-            "market_outlook": "bullish/bearish/neutral",
-            "risk_level": "low/medium/high"
+            "symbol": "TICKER",              // Stock symbol (required)
+            "decision": "buy/sell/hold",     // Trading decision (required)
+            "quantity": 100,                 // Number of shares (optional)
+            "price_target": 150.00,          // Target price (required for buy/sell)
+            "confidence": 0.85,              // Confidence score 0-1 (required)
+            "reasoning": "Detailed analysis" // Explanation (required)
         }}
-        
-        Note: Ensure confidence scores reflect thorough analysis and avoid speculative recommendations.
-        Prioritize risk management and portfolio balance in your decisions.
-        """
+    ],
+    "market_outlook": "bullish/bearish/neutral",
+    "risk_level": "low/medium/high"
+}}
+
+---
+
+### IMPORTANT:
+
+- Provide **step-by-step reasoning** before final recommendations.
+- Avoid speculation; be transparent about uncertainty.
+- Prioritize **risk management** and **portfolio balance**.
+- Use clear, domain-appropriate language.
+- Ensure the JSON is **valid and parseable**.
+
+---
+
+### EXAMPLE (simplified):
+
+{{
+    "recommendations": [
+        {{
+            "symbol": "AAPL",
+            "decision": "buy",
+            "quantity": 50,
+            "price_target": 180.0,
+            "confidence": 0.9,
+            "reasoning": "Strong earnings, bullish trend, low sector risk."
+        }},
+        {{
+            "symbol": "TSLA",
+            "decision": "hold",
+            "confidence": 0.7,
+            "reasoning": "High volatility, mixed signals."
+        }}
+    ],
+    "market_outlook": "bullish",
+    "risk_level": "medium"
+}}
+
+---
+
+Generate your response accordingly.
+"""
     def _parse_ai_response(self, response: Dict) -> Dict[str, TradingDecision]:
         decisions = {}
         
