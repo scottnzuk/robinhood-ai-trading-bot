@@ -1,131 +1,162 @@
-# Elite AI Trading System with Trading-Hero-LLM
+# Robinhood AI Trading Bot
 
----
-
-## Overview
-
-An advanced, modular AI trading platform integrating **Trading-Hero-LLM** (FinBERT fine-tuned for finance) for real-time sentiment analysis, combined with technical and fundamental data to generate actionable trading signals.
-
----
+A sophisticated algorithmic trading system that combines technical analysis, AI-driven decision making, and robust risk management to automate trading on the Robinhood platform.
 
 ## Features
 
-- **Financial Sentiment Analysis:**  
-  Powered by Trading-Hero-LLM with Apple Silicon acceleration (MPS).
+### Core Trading Framework
+- **Strategy Registry**: Unified framework for combining multiple trading strategies
+- **Risk Management**: Advanced position sizing and risk control system
+- **AI Integration**: Dynamic AI prompts that adapt to market conditions
+- **Backtesting**: Comprehensive system for testing strategies on historical data
 
-- **Real-Time Data Ingestion:**  
-  News, social media, reports, and market data.
+### Trading Strategies
+- **Technical Indicators**:
+  - Moving Average Crossover
+  - Relative Strength Index (RSI)
+  - Support for custom technical strategies
+- **AI-Powered Analysis**:
+  - Market regime detection
+  - Sentiment analysis
+  - Pattern recognition
+  - Adaptive decision making
 
-- **Multi-Modal Signal Generation:**  
-  Combines sentiment, technical indicators, and fundamentals.
+### Risk Controls
+- Position sizing based on account volatility
+- Per-trade and daily drawdown limits
+- Sector exposure management
+- Stop-loss and take-profit automation
+- Circuit breaker protection
 
-- **Decision Engine:**  
-  Portfolio-aware, risk-managed trade decisions.
-
-- **Execution Engine:**  
-  Broker API integration (simulated, extendable).
-
-- **Feedback Loop:**  
-  Trade logging, performance analysis, retraining triggers.
-
-- **Modular Architecture:**  
-  Easily extendable and maintainable.
-
-- **Deployment Ready:**  
-  Supports batch, async, or microservice orchestration.
-
----
-
-## Architecture
-
-```mermaid
-flowchart TD
-    A[Data Ingestion] --> B[Sentiment Service]
-    B --> C[Signal Generator]
-    C --> D[Decision Engine]
-    D --> E[Execution Engine]
-    E --> F[Feedback Loop]
-    F --> B
-```
-
----
+### Performance Monitoring
+- Real-time performance metrics
+- Trade history logging
+- Equity curve visualization
+- Risk-adjusted return calculations
 
 ## Installation
 
-1. **Clone the repository:**
-
 ```bash
-git clone https://github.com/yourusername/elite-ai-trading.git
-cd elite-ai-trading
-```
+# Clone the repository
+git clone https://github.com/yourusername/robinhood-ai-trading-bot.git
+cd robinhood-ai-trading-bot
 
-2. **Create and activate virtual environment:**
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-3. **Install dependencies:**
-
-```bash
-pip install --upgrade pip
+# Install dependencies
 pip install -r requirements.txt
+
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your Robinhood credentials and API keys
 ```
-
-4. **Download Trading-Hero-LLM model (auto-download on first run).**
-
----
 
 ## Usage
 
-Run the sentiment-enhanced pipeline:
+### Live Trading
 
 ```bash
-PYTHONPATH=. python3 src/ai_trading_framework/sentiment_pipeline.py
+# Run in demo mode (no real trades)
+python src/main.py --demo-mode
+
+# Run with specific logging level
+python src/main.py --log-level DEBUG
+
+# Limit maximum trades per day
+python src/main.py --max-trades 5
 ```
 
-Or integrate modules individually:
+### Backtesting
 
-- `data_ingestion.py`
-- `sentiment_service.py`
-- `signal_generator.py`
-- `decision_engine.py`
-- `execution_engine.py`
-- `feedback_loop.py`
+```bash
+# Basic backtest with default settings
+python src/main.py --backtest
 
----
+# Backtest specific symbols
+python src/main.py --backtest --symbols AAPL,MSFT,GOOGL
 
-## Memory Bank Documentation
+# Backtest with date range
+python src/main.py --backtest --start-date 2023-01-01 --end-date 2023-12-31
 
-See `memory-bank/` for:
+# Backtest with specific strategies
+python src/main.py --backtest --strategies ma_cross,rsi,ai
 
-- Product context
-- Architecture plans
-- Integration & deployment strategy
-- Decision logs
-- Progress tracking
+# Customize risk parameters
+python src/main.py --backtest --max-position 0.03 --max-risk 0.01
+```
 
----
+## Project Structure
 
-## Contributing
+```
+robinhood-ai-trading-bot/
+├── data/                  # Data storage
+│   ├── historical/        # Historical price data
+│   └── trades/            # Trade history logs
+├── results/               # Backtest results
+├── src/                   # Source code
+│   ├── ai_trading_engine.py   # AI trading components
+│   ├── backtesting.py         # Backtesting framework
+│   ├── circuit_breaker.py     # Circuit breaker protection
+│   ├── config.py              # Configuration settings
+│   ├── exceptions.py          # Custom exceptions
+│   ├── main.py                # Main application entry point
+│   ├── risk_management.py     # Risk management system
+│   ├── strategy_framework.py  # Strategy framework
+│   ├── validation.py          # Data validation
+│   ├── api/                   # API clients
+│   └── utils/                 # Utility functions
+└── tests/                 # Test suite
+```
 
-- Fork and branch from `main`
-- Follow modular design patterns
-- Update Memory Bank docs on major changes
-- Ensure `.gitignore` excludes large files, secrets, and data
+## Adding New Strategies
 
----
+To add a new trading strategy:
+
+1. Create a class that inherits from `Strategy`, `TechnicalStrategy`, or `AIStrategy`
+2. Implement the `generate_signals` method
+3. Register your strategy with the `StrategyRegistry`
+
+Example:
+
+```python
+from src.strategy_framework import TechnicalStrategy, Signal, SignalType
+
+class BollingerBandStrategy(TechnicalStrategy):
+    def __init__(self, window=20, num_std=2):
+        super().__init__({"window": window, "num_std": num_std})
+        self.window = window
+        self.num_std = num_std
+    
+    def generate_signals(self, data):
+        signals = []
+        # Implementation here
+        return signals
+
+# In your main code:
+registry = StrategyRegistry()
+bb_strategy = BollingerBandStrategy()
+registry.register(bb_strategy, weight=0.4)
+```
+
+## Risk Management Configuration
+
+Customize risk parameters by modifying the `RiskParameters` class:
+
+```python
+from src.risk_management import RiskParameters
+
+risk_params = RiskParameters(
+    max_position_size=0.05,  # 5% of portfolio per position
+    max_portfolio_risk=0.02,  # 2% daily risk
+    max_symbol_risk=0.01,    # 1% risk per symbol
+    max_sector_risk=0.20,    # 20% exposure to any sector
+    stop_loss_pct=0.05,      # 5% stop loss
+    take_profit_pct=0.10     # 10% take profit
+)
+```
 
 ## License
 
-[MIT License](LICENSE)
+MIT
 
----
+## Disclaimer
 
-## Acknowledgments
-
-- [Hugging Face Transformers](https://huggingface.co)
-- [PyTorch](https://pytorch.org)
-- [FinBERT](https://github.com/ProsusAI/finBERT)
-- [Apple Silicon MPS acceleration](https://developer.apple.com/metal/)
+This software is for educational purposes only. Use at your own risk. Trading involves risk of financial loss. Past performance is not indicative of future results.

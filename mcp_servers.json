@@ -1,0 +1,46 @@
+{
+  "lucidity_mcp": {
+    "host": "localhost",
+    "port": 9904
+  },
+  "repomix_mcp": {
+    "host": "localhost",
+    "port": 9905
+  },
+  "ultimatecoder_mcp": {
+    "host": "localhost",
+    "port": 9906
+  },
+  "deepseekg_mcp": {
+    "host": "localhost",
+    "port": 9907
+  },
+  "firecrawl_mcp": {
+    "host": "localhost",
+    "port": 9908
+  },
+  "ragdocs_mcp": {
+    "host": "localhost",
+    "port": 9909
+  },
+  "sequentialthinking_mcp": {
+    "host": "localhost",
+    "port": 9910
+  },
+  "coderesearch_mcp": {
+    "host": "localhost",
+    "port": 9911
+  },
+  "grafana": {
+    "host": "localhost",
+    "port": 9900
+  },
+  "prometheus": {
+    "host": "localhost",
+    "port": 9901
+  },
+  "vscode_debug": {
+    "host": "localhost",
+    "port": 9902
+  }
+}

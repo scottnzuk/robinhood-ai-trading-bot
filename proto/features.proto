@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package trading;
+
+message FeatureSet {
+  string symbol = 1;
+  double ema_fast = 2;
+  double ema_slow = 3;
+  double volatility = 4;
+  int64 timestamp_ms = 5;
+}
+
+message Signal {
+  string symbol = 1;
+  string action = 2; // "long", "short", "hold", "alert"
+  double confidence = 3;
+  int64 expiry_ms = 4;
+  int64 timestamp_ms = 5;
+}

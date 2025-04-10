@@ -1,10 +1,17 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+import asyncio
 import time
 from datetime import datetime, timezone
 import json
-import asyncio
+from aiocache import Cache
+from aiocache.serializers import JsonSerializer
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+from src.decorators import RateLimited, rh_api_retry, ai_api_retry
+from src.circuit_breaker import CircuitBreakerService, BreakerConfig
+from src.trading_utils import get_ai_amount_guidelines, limit_watchlist_stocks, format_trading_results
+from src.exceptions import *
 
 from config import (
     MIN_SELLING_AMOUNT_USD,
@@ -16,14 +23,82 @@ from config import (
     RUN_INTERVAL_SECONDS,
     WATCHLIST_NAMES,
     WATCHLIST_OVERVIEW_LIMIT,
-    MODE
+    MODE,
+    AI_PROVIDERS,
+    RISK_PARAMS,
+    AUTOMATION_MODE
 )
 from src.api import robinhood
-from src.api import openai
+from src.api.ai_provider import AIMultiProvider
 from src.utils import logger
+from src.risk import RiskManager
+from src.monitoring import HealthMonitor
+from src.patterns import YOLOv8sDetector
 
+# Cache configuration
+cache = Cache(
+    Cache.MEMORY,
+    serializer=JsonSerializer(),
+    timeout=10,
+    size=1000  # Will auto-evict LRU items when full
+)
 
-# Get AI amount guidelines
+# Initialize services
+health_monitor = HealthMonitor()
+
+# Rate limiters with health monitoring
+rh_rate_limiter = RateLimited(calls=60, period=60, priority=1)
+ai_rate_limiter = RateLimited(calls=30, period=60, priority=2)
+rh_rate_limiter.set_health_monitor(health_monitor)
+ai_rate_limiter.set_health_monitor(health_monitor)
+
+# Log initial rate limits
+logger.info(f"Initialized rate limiters - Robinhood: {rh_rate_limiter.calls}/min, AI: {ai_rate_limiter.calls}/min")
+
+# Circuit breaker
+breaker_service = CircuitBreakerService()
+breaker_service.register_endpoint(
+    "robinhood_api",
+    BreakerConfig(failure_threshold=5, success_threshold=3, timeout_seconds=300)
+)
+breaker_service.register_endpoint(
+    "ai_service",
+    BreakerConfig(failure_threshold=3, success_threshold=2, timeout_seconds=180)
+)
+
+# Initialize services
+ai_provider = AIMultiProvider(AI_PROVIDERS)
+risk_manager = RiskManager(RISK_PARAMS)
+pattern_detector = YOLOv8sDetector()
+
+# Initialize metrics collection
+health_monitor.register_metric('rate_limit_adjustments', 'counter')
+
+@rh_api_retry
+@rh_rate_limiter
+async def get_account_info():
+    cached = await cache.get("account_info")
+    if cached:
+        return cached
+    info = await robinhood.get_account_info()
+    await cache.set("account_info", info, ttl=300)
+    return info
+
+@rh_api_retry
+@rh_rate_limiter
+async def get_portfolio_stocks():
+    cached = await cache.get("portfolio")
+    if cached:
+        return cached
+    portfolio = await robinhood.get_portfolio_stocks()
+    await cache.set("portfolio", portfolio, ttl=60)
+    return portfolio
+
+@ai_api_retry
+@ai_rate_limiter
+async def make_ai_request(prompt):
+    return ai_provider.make_request(prompt)
+
 def get_ai_amount_guidelines():
     sell_guidelines = []
     if MIN_SELLING_AMOUNT_USD is not False:
@@ -41,13 +116,17 @@ def get_ai_amount_guidelines():
 
     return sell_guidelines, buy_guidelines
 
-
-# Make AI-based decisions on stock portfolio and watchlist
 def make_ai_decisions(account_info, portfolio_overview, watchlist_overview):
+    # Get pattern detection signals
+    pattern_signals = pattern_detector.detect(portfolio_overview.keys())
+    
     constraints = [
         f"- Initial budget: {account_info['buying_power']} USD",
         f"- Max portfolio size: {PORTFOLIO_LIMIT} stocks",
+        f"- Risk tolerance: {RISK_PARAMS['risk_tolerance']}",
+        *[f"- Pattern detected for {sym}: {pat}" for sym, pat in pattern_signals.items()]
     ]
+    
     sell_guidelines, buy_guidelines = get_ai_amount_guidelines()
     if sell_guidelines:
         constraints.append(f"- Sell Amounts Guidelines: {sell_guidelines}")
@@ -83,263 +162,72 @@ def make_ai_decisions(account_info, portfolio_overview, watchlist_overview):
         "- Provide only the JSON output with no additional text.\n"
         "- Return an empty array if no actions are necessary."
     )
+    
     logger.debug(f"AI making-decisions prompt:{chr(10)}{ai_prompt}")
-    ai_response = openai.make_ai_request(ai_prompt)
-    logger.debug(f"AI making-decisions response:{chr(10)}{ai_response.choices[0].message.content.strip()}")
-    decisions = openai.parse_ai_response(ai_response)
-    return decisions
+    from src.validation import AIResponseValidator
+    
+    ai_response = make_ai_request(ai_prompt)
+    logger.debug(f"AI making-decisions response:{chr(10)}{ai_response}")
+    decisions = ai_provider.parse_response(ai_response)
+    portfolio_symbols = list(portfolio_overview.keys())
+    validated_decisions = AIResponseValidator.full_validation(decisions, portfolio_symbols)
+    return validated_decisions
 
-
-# Filter AI hallucinations
-def filter_ai_hallucinations(account_info, portfolio_overview, watchlist_overview, decisions_data):
-    filtered_decisions = []
-
-    for decision in decisions_data:
-        symbol = decision.get('symbol')
-        decision_type = decision.get('decision')
-        quantity = decision.get('quantity', 0)
-
-        # Filter decisions for stocks in TRADE_EXCEPTIONS
-        if symbol in TRADE_EXCEPTIONS:
-            logger.debug(f"Filtering out {decision_type} decision for {symbol} - in TRADE_EXCEPTIONS")
-            continue
-
-        # Filter sell decisions with 0 quantity
-        if decision_type == "sell" and quantity == 0:
-            logger.debug(f"Filtering out sell decision for {symbol} with 0 quantity")
-            continue
-
-        # Filter buy decisions with 0 quantity
-        if decision_type == "buy" and quantity == 0:
-            logger.debug(f"Filtering out buy decision for {symbol} with 0 quantity")
-            continue
-
-        # Get stock data from either portfolio or watchlist
-        stock_data = portfolio_overview.get(symbol) or watchlist_overview.get(symbol)
-        if not stock_data:
-            logger.debug(f"Filtering out decision for {symbol} - not found in portfolio or watchlist")
-            continue
-
-        # Filter buy decisions with is_buy_pdt_restricted == True
-        if decision_type == "buy" and stock_data.get("is_buy_pdt_restricted", False):
-            logger.debug(f"Filtering out buy decision for {symbol} due to PDT restriction")
-            continue
-
-        # Filter sell decisions with is_sell_pdt_restricted == True
-        if decision_type == "sell" and stock_data.get("is_sell_pdt_restricted", False):
-            logger.debug(f"Filtering out sell decision for {symbol} due to PDT restriction")
-            continue
-
-        filtered_decisions.append(decision)
-
-    logger.debug(f"Filtered out {len(decisions_data) - len(filtered_decisions)} decision(s)")
-    return filtered_decisions
-
-
-# Limit watchlist stocks based on the current week number
-def limit_watchlist_stocks(watchlist_stocks, limit):
-    if len(watchlist_stocks) <= limit:
-        return watchlist_stocks
-
-    # Sort watchlist stocks by symbol
-    watchlist_stocks = sorted(watchlist_stocks, key=lambda x: x['symbol'])
-
-    # Get the current month number
-    current_month = datetime.now(timezone.utc).month # from datetime import timezone
-
-    # Calculate the number of parts
-    num_parts = (len(watchlist_stocks) + limit - 1) // limit  # Ceiling division
-
-    # Determine the part to return based on the current month number
-    part_index = (current_month - 1) % num_parts
-    start_index = part_index * limit
-    end_index = min(start_index + limit, len(watchlist_stocks))
-
-    return watchlist_stocks[start_index:end_index]
-
-
-# Main trading bot function
-def trading_bot():
-    logger.info("Getting account info...")
-    account_info = robinhood.get_account_info()
-
-    logger.info("Getting portfolio stocks...")
-    portfolio_stocks = robinhood.get_portfolio_stocks()
-
-    logger.debug(f"Portfolio stocks total: {len(portfolio_stocks)}")
-
-    portfolio_stocks_value = 0
-    for stock in portfolio_stocks.values():
-        portfolio_stocks_value += float(stock['price']) * float(stock['quantity'])
-    portfolio = [f"{symbol} ({round(float(stock['price']) * float(stock['quantity']) / portfolio_stocks_value * 100, 2)}%)" for symbol, stock in portfolio_stocks.items()]
-    portfolio_status = 'None' if len(portfolio) == 0 else ', '.join(portfolio)
-    logger.info(f"Portfolio stocks to proceed: {portfolio_status}")
-
-    logger.info("Prepare portfolio stocks for AI analysis...")
-    portfolio_overview = {}
-    for symbol, stock_data in portfolio_stocks.items():
-        historical_data_day = robinhood.get_historical_data(symbol, interval="5minute", span="day")
-        historical_data_year = robinhood.get_historical_data(symbol, interval="day", span="year")
-        ratings_data = robinhood.get_ratings(symbol)
-        portfolio_overview[symbol] = robinhood.extract_my_stocks_data(stock_data)
-        portfolio_overview[symbol] = robinhood.enrich_with_rsi(portfolio_overview[symbol], historical_data_day, symbol)
-        portfolio_overview[symbol] = robinhood.enrich_with_vwap(portfolio_overview[symbol], historical_data_day, symbol)
-        portfolio_overview[symbol] = robinhood.enrich_with_moving_averages(portfolio_overview[symbol], historical_data_year, symbol)
-        portfolio_overview[symbol] = robinhood.enrich_with_analyst_ratings(portfolio_overview[symbol], ratings_data)
-        portfolio_overview[symbol] = robinhood.enrich_with_pdt_restrictions(portfolio_overview[symbol], symbol)
-
-    logger.info("Getting watchlist stocks...")
-    watchlist_stocks = []
-    for watchlist_name in WATCHLIST_NAMES:
-        try:
-            watchlist_stocks.extend(robinhood.get_watchlist_stocks(watchlist_name))
-            watchlist_stocks = [dict(t) for t in {tuple(d.items()) for d in watchlist_stocks}]
-        except Exception as e:
-            logger.error(f"Error getting watchlist stocks for {watchlist_name}: {e}")
-
-    logger.debug(f"Watchlist stocks total: {len(watchlist_stocks)}")
-
-    watchlist_overview = {}
-    if len(watchlist_stocks) > 0:
-        logger.debug(f"Limiting watchlist stocks to overview limit of {WATCHLIST_OVERVIEW_LIMIT}...")
-        watchlist_stocks = limit_watchlist_stocks(watchlist_stocks, WATCHLIST_OVERVIEW_LIMIT)
-
-        logger.debug(f"Removing portfolio stocks from watchlist...")
-        watchlist_stocks = [stock for stock in watchlist_stocks if stock['symbol'] not in portfolio_stocks.keys()]
-
-        logger.info(f"Watchlist stocks to proceed: {', '.join([stock['symbol'] for stock in watchlist_stocks])}")
-
-        logger.info("Prepare watchlist overview for AI analysis...")
-        for stock_data in watchlist_stocks:
-            symbol = stock_data['symbol']
-            historical_data_day = robinhood.get_historical_data(symbol, interval="5minute", span="day")
-            historical_data_year = robinhood.get_historical_data(symbol, interval="day", span="year")
-            ratings_data = robinhood.get_ratings(symbol)
-            watchlist_overview[symbol] = robinhood.extract_watchlist_data(stock_data)
-            watchlist_overview[symbol] = robinhood.enrich_with_rsi(watchlist_overview[symbol], historical_data_day, symbol)
-            watchlist_overview[symbol] = robinhood.enrich_with_vwap(watchlist_overview[symbol], historical_data_day, symbol)
-            watchlist_overview[symbol] = robinhood.enrich_with_moving_averages(watchlist_overview[symbol], historical_data_year, symbol)
-            watchlist_overview[symbol] = robinhood.enrich_with_analyst_ratings(watchlist_overview[symbol], ratings_data)
-            watchlist_overview[symbol] = robinhood.enrich_with_pdt_restrictions(watchlist_overview[symbol], symbol)
-
-    if len(portfolio_overview) == 0 and len(watchlist_overview) == 0:
-        logger.warning("No stocks to analyze, skipping AI-based decision-making...")
-        return {}
-
-    decisions_data = []
-    trading_results = {}
-
-    try:
-        logger.info("Making AI-based decision...")
-        decisions_data = make_ai_decisions(account_info, portfolio_overview, watchlist_overview)
-    except Exception as e:
-        logger.error(f"Error making AI-based decision: {e}")
-
-    logger.info("Filtering AI hallucinations...")
-    decisions_data = filter_ai_hallucinations(account_info, portfolio_overview, watchlist_overview, decisions_data)
-
-    if len(decisions_data) == 0:
-        logger.info("No decisions to execute")
-        return trading_results
-
-    logger.info("Executing decisions...")
-
-    for decision_data in decisions_data:
-        symbol = decision_data['symbol']
-        decision = decision_data['decision']
-        quantity = decision_data['quantity']
-        logger.info(f"{symbol} > Decision: {decision} of {quantity}")
-
-        if decision == "sell":
-            try:
-                sell_resp = robinhood.sell_stock(symbol, quantity)
-                if sell_resp and 'id' in sell_resp:
-                    if sell_resp['id'] == "demo":
-                        trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "sell", "result": "success", "details": "Demo mode"}
-                        logger.info(f"{symbol} > Demo > Sold {quantity} stocks")
-                    elif sell_resp['id'] == "cancelled":
-                        trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "sell", "result": "cancelled", "details": "Cancelled by user"}
-                        logger.info(f"{symbol} > Sell cancelled by user")
-                    else:
-                        details = robinhood.extract_sell_response_data(sell_resp)
-                        trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "sell", "result": "success", "details": details}
-                        logger.info(f"{symbol} > Sold {quantity} stocks")
-                else:
-                    details = sell_resp['detail'] if 'detail' in sell_resp else sell_resp
-                    trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "sell", "result": "error", "details": details}
-                    logger.error(f"{symbol} > Error selling: {details}")
-            except Exception as e:
-                trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "sell", "result": "error", "details": str(e)}
-                logger.error(f"{symbol} > Error selling: {e}")
-
-        if decision == "buy":
-            try:
-                buy_resp = robinhood.buy_stock(symbol, quantity)
-                if buy_resp and 'id' in buy_resp:
-                    if buy_resp['id'] == "demo":
-                        trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "buy", "result": "success", "details": "Demo mode"}
-                        logger.info(f"{symbol} > Demo > Bought {quantity} stocks")
-                    elif buy_resp['id'] == "cancelled":
-                        trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "buy", "result": "cancelled", "details": "Cancelled by user"}
-                        logger.info(f"{symbol} > Buy cancelled by user")
-                    else:
-                        details = robinhood.extract_buy_response_data(buy_resp)
-                        trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "buy", "result": "success", "details": details}
-                        logger.info(f"{symbol} > Bought {quantity} stocks")
-                else:
-                    details = buy_resp['detail'] if 'detail' in buy_resp else buy_resp
-                    trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "buy", "result": "error", "details": details}
-                    logger.error(f"{symbol} > Error buying: {details}")
-            except Exception as e:
-                trading_results[symbol] = {"symbol": symbol, "quantity": quantity, "decision": "buy", "result": "error", "details": str(e)}
-                logger.error(f"{symbol} > Error buying: {e}")
-
-    return trading_results
-
-
-# Run trading bot in a loop
 async def main():
     robinhood_token_expiry = 0
+    
+    # Skip confirmation if in full automation mode
+    if AUTOMATION_MODE != "full" and input("Run bot? (yes/no): ").lower() != "yes":
+        logger.warning("Execution cancelled by user")
+        return
 
     while True:
         try:
-            # Check if Robinhood token needs refresh (refresh 5 minutes before expiry)
+            if breaker_service.check("main_loop"):
+                logger.warning("Circuit breaker active - skipping iteration")
+                await asyncio.sleep(60)
+                continue
+                
+            # Token refresh
             if time.time() >= robinhood_token_expiry - 300:
-                logger.info("Login to Robinhood...")
-                login_resp = await robinhood.login_to_robinhood()
-                if not login_resp or 'expires_in' not in login_resp:
-                    raise ValueError(f"Failed to login to Robinhood. Response: {login_resp}")
-                robinhood_token_expiry = time.time() + login_resp['expires_in']
-                logger.info(f"Successfully logged in. Token expires in {login_resp['expires_in']} seconds")
+                try:
+                    login_resp = await robinhood.login_to_robinhood()
+                    if not login_resp or 'expires_in' not in login_resp:
+                        raise APIEndpointError("robinhood/auth", 500, "Invalid login response")
+                    robinhood_token_expiry = time.time() + login_resp['expires_in']
+                    breaker_service.record_success("robinhood_api")
+                except Exception as e:
+                    breaker_service.record_failure("robinhood_api")
+                    raise
 
             if robinhood.is_market_open():
-                run_interval_seconds = RUN_INTERVAL_SECONDS
-                logger.info(f"Market is open, running trading bot in {MODE} mode...")
-
-                trading_results = trading_bot()
-
-                sold_stocks = [f"{result['symbol']} ({result['quantity']})" for result in trading_results.values() if result['decision'] == "sell" and result['result'] == "success"]
-                bought_stocks = [f"{result['symbol']} ({result['quantity']})" for result in trading_results.values() if result['decision'] == "buy" and result['result'] == "success"]
-                errors = [f"{result['symbol']} ({result['details']})" for result in trading_results.values() if result['result'] == "error"]
-                logger.info(f"Sold: {'None' if len(sold_stocks) == 0 else ', '.join(sold_stocks)}")
-                logger.info(f"Bought: {'None' if len(bought_stocks) == 0 else ', '.join(bought_stocks)}")
-                logger.info(f"Errors: {'None' if len(errors) == 0 else ', '.join(errors)}")
+                try:
+                    trading_results = await execute_trading_cycle()
+                    health_monitor.record_iteration(
+                        success=all(r['result'] in ('success', 'cancelled')
+                        for r in trading_results.values()
+                    ))
+                    
+                    if health_monitor.is_unhealthy():
+                        breaker_service.record_failure("main_loop")
+                    
+                    await asyncio.sleep(RUN_INTERVAL_SECONDS)
+                except CircuitTrippedError:
+                    await asyncio.sleep(60)
+                except RateLimitExceededError as e:
+                    logger.error(f"Rate limit exceeded: {e}")
+                    await asyncio.sleep(60)
+                except Exception as e:
+                    logger.error(f"Trading cycle error: {e}")
+                    breaker_service.record_failure("main_loop")
+                    await asyncio.sleep(60)
             else:
-                run_interval_seconds = 60
-                logger.info("Market is closed, waiting for next run...")
+                await asyncio.sleep(60)
+                
         except Exception as e:
-            run_interval_seconds = 60
-            logger.error(f"Trading bot error: {e}")
+            logger.error(f"Main loop error: {e}")
+            breaker_service.record_failure("main_loop")
+            await asyncio.sleep(60)
 
-        logger.info(f"Waiting for {run_interval_seconds} seconds...")
-        time.sleep(run_interval_seconds)
-
-
-# Run the main function
 if __name__ == '__main__':
-    confirm = input("Are you sure you want to run the bot in {} mode? (yes/no): ".format(MODE))
-    if confirm.lower() != "yes":
-        logger.warning("Exiting the bot...")
-        # exit()
     asyncio.run(main())
-

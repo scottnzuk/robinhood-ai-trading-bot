@@ -1,112 +1,47 @@
-# Product Context
+## Product Context - Updated 2025-04-10 15:54
 
-This file provides a high-level overview of the Robinhood AI Trading Bot project. Initial context gathered from project files on 2024-07-28 10:54:30.
+### Overview
+A fully autonomous, multi-exchange crypto trading system with:
 
-## Project Goal
-Automated stock trading system using AI decision-making with support for multiple AI providers (OpenAI, Deepseek, Requestly, OpenRouter) integrated with Robinhood trading platform.
+- Unified Trading Framework:
+  - Strategy Framework with weighted signal combination
+  - Risk Management System with position sizing and risk controls
+  - AI Trading Engine with dynamic prompts based on market conditions
+  - Backtesting Framework for strategy validation on historical data
+- Multi-model candle pattern recognition:
+  - TA-Lib rule-based detection
+  - Classic signals (MA, RSI) via Strategy Framework
+  - Alpaca-LoRA LLaMA LLM (local, fine-tuned)
+  - Flan-T5 fine-tuned LLM (local)
+  - Quantized phi model (pending integration)
+- Advanced execution engine:
+  - Adaptive sizing, iceberg, TWAP/VWAP
+  - Behavioral noise, decoys, randomized timing
+  - Multi-exchange sharding, rebate optimization
+  - Circuit breakers, anomaly detection, threat ensemble
+- Modular plugin architecture with Pluggy
+- Real-time monitoring, Prometheus metrics, Grafana dashboards
+- Deployment automation, CI/CD, and environment setup scripts
+- Memory Bank for persistent context and decision logs
 
-## Key Features
-- Multi-AI provider support with unified interface
-- Robinhood API integration for trading
-- AI decision making with constraints:
-  - Portfolio limits
-  - Trading amount guidelines
-  - Exception lists
-- Hallucination filtering
-- Market-aware scheduling
-- Demo mode support
+### Key Features
+- Modular, extensible architecture for trading strategies
+- Comprehensive risk management with position sizing
+- Dynamic AI prompts that adapt to market conditions
+- Backtesting capabilities for strategy validation
+- Fully async, scalable, and fault-tolerant
+- Multi-layered anti-gaming and stealth tactics
+- Ensemble of AI, rule-based, and classic signals
+- Real-time adaptive threat mitigation
+- Extensible with new models and strategies
+- Designed for Apple Silicon with MPS acceleration
+- Production-ready, continuously optimized
 
-## Overall Architecture
-```mermaid
-graph TD
-    A[Robinhood API] --> B[Trading Bot]
-    C[AI Providers] --> B
-    B --> D[Decision Engine]
-    D --> E[Trade Execution]
-    E --> F[Results Logging]
-```
-Key components:
-- Main trading loop (main.py)
-- AI provider interface (src/api/ai_provider.py)
-- Robinhood integration (src/api/robinhood.py)
-- Decision filtering logic
-- Error handling system
-
-## Project Goal
-Create an AI-powered automated trading bot for Robinhood that makes data-driven investment decisions while maintaining security and compliance.
-
-## Key Features
-- AI-driven trading decisions
-- Real-time market analysis
-- Portfolio management
-- Risk management controls
-- Multiple operation modes (demo/manual/auto)
-- Comprehensive logging and monitoring
-
-## Overall Architecture
-```mermaid
-graph TD
-    A[Market Data] --> B[AI Analysis]
-    B --> C[Decision Engine]
-    C --> D[Trade Execution]
-    D --> E[Portfolio Management]
-    E --> A
-    F[Security Layer] --> A & B & C & D & E
-```
-
-## Upcoming Architecture Improvements
-
-### Execution Engine Enhancements
-- **Retry Logic**: Automatic retries for failed API calls (3 attempts, exponential backoff)
-- **Rate Limiting**: 60 calls/minute enforced via @limits decorator
-- **Price Caching**: TTLCache for 5-minute price retention
-- **Smart Routing**: Multi-factor route scoring (latency, cost, success rate)
-
-### Risk Management System
-- **Dynamic Stops**: ATR-based stop loss/take profit
-- **Position Sizing**: Risk-per-trade calculation (2% of equity)
-- **Exposure Checks**: Portfolio-wide risk limits
-
-### Data Processing
-- **Parallel Processing**: ProcessPoolExecutor for symbol data
-- **Noise Filtering**: Kalman filter implementation
-- **Anomaly Detection**: Isolation forest algorithm
-
-## Summary of Upgrades
-
-- **Integration with project management tools**
-- **Memory bank visualization**
-- **Automated backup system**
-- **Automated memory bank synchronization**
-- **Version history tracking**
-- **README update script**
-- **Validation checks for memory bank file formats**
-- **Enhanced error handling**
-- **Exponential backoff for external API calls**
-- **Standardized update formats across documentation**
-- **Added cross-references between memory bank files**
-- **Integration with Robinhood API**
-- **AI-driven trading decisions**
-- **Real-time market analysis**
-- **Portfolio management**
-- **Risk management controls**
-- **Multiple operation modes (demo/manual/auto)**
-- **Comprehensive logging and monitoring**
-- **Execution engine enhancements**
-- **Risk management system**
-- **Data processing improvements**
-- **Upcoming architecture improvements**
-
-
-[2025-04-06 14:24] - Project now includes a modular, production-ready AI trading system with:
-- Trading-Hero-LLM sentiment analysis (FinBERT fine-tuned)
-- Real-time data ingestion (news, social, market data)
-- Signal generation combining sentiment, technicals, fundamentals
-- Decision engine with portfolio and risk overlays
-- Execution engine simulating broker API
-- Feedback loop with logging, performance analysis, retraining triggers
-- Integration and deployment plans (batch, async, microservices)
-- Apple Silicon MPS acceleration support
-- Extensive Memory Bank documentation
-
-2024-07-28 10:54:30 - Initial memory bank creation
+### Status
+- Unified Trading Framework implemented and operational
+- Core ingestion, analytics, execution operational
+- Candle classification ensemble integrated
+- Threat detection and circuit breakers active
+- Backtesting system ready for strategy validation
+- Deployment and monitoring in place
+- Final tuning, testing, and model integration ongoing

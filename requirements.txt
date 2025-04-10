@@ -13,6 +13,12 @@ selenium>=4.30.0
 webdriver-manager>=4.0.2
 urllib3>=2.2.2 # not directly required, pinned by Snyk to avoid a vulnerability
 optuna~=3.6.0
-ray[tune]~=2.24.0
 pyyaml~=6.0
-torch~=2.2.0
+torch>=2.6.0
+# Testing dependencies
+pytest>=7.0
+pytest-asyncio>=0.20
+
+# Optional dependencies
+# ray[tune]>=2.9.0  # Not yet available for Python 3.13
+

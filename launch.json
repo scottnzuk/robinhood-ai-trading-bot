@@ -7,7 +7,8 @@
       "name": "Launch main.py",
       "program": "${workspaceFolder}/${input:programPath}",
       "console": "integratedTerminal",
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/.env",
+      "port": 9902
     }
   ],
   "inputs": [
