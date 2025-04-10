@@ -49,3 +49,5 @@ checkpoints/
 dist/
 build/
 
+.venv/
+.venv310/
